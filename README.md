@@ -16,8 +16,8 @@ Every install comes with a curated library of Claude Code agents, skills, and MC
 
 ### Requirements
 
-- **Windows 10 or 11**
-- **[Claude Code CLI](https://claude.com/download)** installed and available on your PATH (`claude` should work in PowerShell)
+- **Windows 10/11** (NSIS `.exe` installer on the Releases page) **or macOS** (build the `.dmg` from source — see [Building for Mac](#building-for-mac))
+- **[Claude Code CLI](https://claude.com/download)** installed and available on your PATH (`claude` should work in your shell)
 - A **Canvas account** at an institution that exposes the standard Canvas LMS API
 
 ---
@@ -86,6 +86,28 @@ See [`scripts/bundle-user-library.mjs`](scripts/bundle-user-library.mjs) for the
 
 ---
 
+## Building for Mac
+
+The `.dmg` must be built on macOS — electron-builder can't cross-compile a Mac installer from Windows. If you have a Mac:
+
+```bash
+git clone https://github.com/UnlimitedxIQ/plume-hub
+cd plume-hub
+npm install
+npm run dist:mac
+# → release/Plume Hub-X.Y.Z.dmg
+```
+
+The `bundle:library` step in the pipeline snapshots YOUR current `~/.claude/` state (agents + skills + group config) into the installer. Fresh checkouts with no Claude Code content produce an empty bundle — that's expected.
+
+On first launch, Mac users will see a Gatekeeper warning: "Plume Hub cannot be opened because the developer cannot be verified." Right-click the app in `/Applications` → **Open** → **Open** in the dialog. (The `v1.0.0` .dmg is unsigned; EV code-signing is a future release goal.)
+
+Platform-specific code lives in:
+- `src/main/platform.ts` — tiny helpers (`isMac`, `isWindows`, shell-escape functions)
+- `src/main/launcher.ts` — writes `.ps1` on Windows, `.sh` on Mac; spawns via `cmd.exe /c start powershell.exe` or `osascript "tell Terminal to do script …"`
+- `src/main/skill-optimizer.ts` — same pattern
+- `src/main/ipc-handlers.ts` → `snapLeft()` — Mac skips the Windows-11 invisible-border fudge
+
 ## For developers
 
 ```bash
@@ -93,9 +115,14 @@ See [`scripts/bundle-user-library.mjs`](scripts/bundle-user-library.mjs) for the
 npm install
 npm run dev
 
-# Build a fresh installer
+# Build a fresh installer for your current platform
 npm run dist
-# → release/Plume Hub Setup X.Y.Z.exe
+# → release/Plume Hub Setup X.Y.Z.exe  (Windows)
+# → release/Plume Hub-X.Y.Z.dmg        (macOS)
+
+# Or force a specific platform
+npm run dist:win
+npm run dist:mac
 ```
 
 The `dist` script runs `bundle-user-library.mjs` first, which snapshots the current machine's `~/.claude/` state into `resources/bundled-library/`. That directory is gitignored — it's regenerated on every build.

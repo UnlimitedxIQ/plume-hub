@@ -6,6 +6,7 @@ import os from 'os'
 import { CanvasClient } from './canvas-client'
 import { launchAssignment } from './launcher'
 import { launchSkillOptimizer } from './skill-optimizer'
+import { isWindows } from './platform'
 import { scanSkills as scanSkillStore, toggleSkill as toggleSkillStore } from './skill-store'
 import { scanMcps, addMcp, updateMcp, removeMcp, type McpWriteInput } from './mcp-store'
 import {
@@ -30,6 +31,53 @@ import {
   assignSkill as assignSkillToGroup,
 } from './agent-groups'
 import { listStyleProfiles, getStyleProfile, deleteStyleProfile } from './writing-style-store'
+
+// Snap Plume Hub to the LEFT half of whichever display it's currently on.
+// The terminal launcher (PowerShell on Windows, Terminal on Mac) snaps itself
+// to the RIGHT half — the two together tile the display cleanly.
+//
+// Platform quirks handled:
+//   • Windows 11 has an invisible 7px resize border on every window. Without
+//     compensating, the two halves meet with a visible ~14px gap at the seam.
+//     We push the Plume window 7px past each inside edge to close that gap.
+//   • Mac uses the OS-reported `workArea` directly — no invisible border to
+//     compensate for. Maximize/unmaximize semantics also don't apply the same
+//     way (Mac "zoom" is distinct from Windows "maximize"), so we skip the
+//     `unmaximize()` call there.
+//   • Fullscreen is exited first on both platforms because `setBounds()`
+//     silently no-ops while the window is in fullscreen mode.
+async function snapLeft(win: BrowserWindow): Promise<void> {
+  try {
+    if (win.isMinimized()) win.restore()
+    if (win.isFullScreen()) {
+      win.setFullScreen(false)
+      await new Promise((r) => setTimeout(r, 180))
+    }
+    if (isWindows && win.isMaximized()) {
+      win.unmaximize()
+      await new Promise((r) => setTimeout(r, 60))
+    }
+    const display = screen.getDisplayMatching(win.getBounds())
+    const { workArea } = display
+    const halfW = Math.floor(workArea.width / 2)
+    if (isWindows) {
+      const WIN11_BORDER = 7
+      win.setBounds({
+        x: workArea.x - WIN11_BORDER,
+        y: workArea.y,
+        width: halfW + WIN11_BORDER * 2,
+        height: workArea.height + WIN11_BORDER,
+      })
+    } else {
+      win.setBounds({
+        x: workArea.x,
+        y: workArea.y,
+        width: halfW,
+        height: workArea.height,
+      })
+    }
+  } catch { /* snap is best-effort; never block the launch */ }
+}
 
 export function setupIpcHandlers(win: BrowserWindow): void {
 
@@ -156,39 +204,10 @@ export function setupIpcHandlers(win: BrowserWindow): void {
       const result = await launchAssignment(args)
 
       // Snap Plume Hub to the LEFT half of the display it's currently on.
-      // The PowerShell launcher snaps itself to the RIGHT half. Both windows
-      // extend past the half-width center by WIN11_BORDER pixels to hide
-      // Windows 11's invisible resize border.
-      //
-      // Critically, if the window is fullscreen or maximized, setBounds()
-      // silently no-ops because Windows treats those as fixed geometry
-      // modes. Exit them first — setFullScreen(false) is async so we await
-      // a beat for the animation before the subsequent setBounds sticks.
-      try {
-        if (win.isMinimized()) win.restore()
-        if (win.isFullScreen()) {
-          win.setFullScreen(false)
-          await new Promise((r) => setTimeout(r, 180))
-        }
-        if (win.isMaximized()) {
-          win.unmaximize()
-          await new Promise((r) => setTimeout(r, 60))
-        }
-
-        const display = screen.getDisplayMatching(win.getBounds())
-        const { workArea } = display
-        const halfW = Math.floor(workArea.width / 2)
-        const WIN11_BORDER = 7  // invisible resize border at 100% DPI on Win11
-        // LEFT half — x starts at workArea.x minus the invisible border so
-        // the VISIBLE left edge of the window aligns with the screen edge,
-        // and width extends WIN11_BORDER past the center seam on the right.
-        win.setBounds({
-          x: workArea.x - WIN11_BORDER,
-          y: workArea.y,
-          width: halfW + WIN11_BORDER * 2,
-          height: workArea.height + WIN11_BORDER,
-        })
-      } catch { /* snap is best-effort; don't block the launch if it fails */ }
+      // The terminal launcher snaps itself to the RIGHT half. See snapLeft()
+      // below for the platform-aware implementation (Windows needs an extra
+      // fudge pixel to absorb the invisible resize border; Mac does not).
+      await snapLeft(win)
 
       return { ok: true, projectDir: result.projectDir }
     } catch (e) {
@@ -199,30 +218,7 @@ export function setupIpcHandlers(win: BrowserWindow): void {
   ipcMain.handle('launcher:optimize-skills', async () => {
     try {
       const result = await launchSkillOptimizer()
-
-      // Same snap logic as launcher:start-assignment — Plume LEFT, PS RIGHT.
-      try {
-        if (win.isMinimized()) win.restore()
-        if (win.isFullScreen()) {
-          win.setFullScreen(false)
-          await new Promise((r) => setTimeout(r, 180))
-        }
-        if (win.isMaximized()) {
-          win.unmaximize()
-          await new Promise((r) => setTimeout(r, 60))
-        }
-
-        const display = screen.getDisplayMatching(win.getBounds())
-        const { workArea } = display
-        const halfW = Math.floor(workArea.width / 2)
-        const WIN11_BORDER = 7
-        win.setBounds({
-          x: workArea.x - WIN11_BORDER,
-          y: workArea.y,
-          width: halfW + WIN11_BORDER * 2,
-          height: workArea.height + WIN11_BORDER,
-        })
-      } catch { /* snap is best-effort */ }
+      await snapLeft(win)
 
       return { ok: true, workingDir: result.workingDir }
     } catch (e) {

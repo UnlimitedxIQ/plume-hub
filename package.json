@@ -10,6 +10,8 @@
     "build": "vite build && tsc -p tsconfig.main.json",
     "bundle:library": "node scripts/bundle-user-library.mjs",
     "dist": "npm run bundle:library && npm run build && electron-builder",
+    "dist:win": "npm run bundle:library && npm run build && electron-builder --win",
+    "dist:mac": "npm run bundle:library && npm run build && electron-builder --mac",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
@@ -73,6 +75,11 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity",
+      "identity": null
     }
   }
 }

@@ -2,8 +2,10 @@ import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import { screen } from 'electron'
 import { getSettings } from './settings'
 import { ensureWorkflowAgentsInstalled } from './workflow-installer'
+import { isMac, shEscapeSingle, applescriptEscape } from './platform'
 
 export type WorkflowMode = 'think' | 'draft' | 'build' | 'study' | 'resume'
 
@@ -24,6 +26,20 @@ interface WorkflowModeMeta {
   label: string
   hint: string
   agent: string
+}
+
+// Shared inputs passed to the platform-specific script-writing helpers.
+// Keeps the branches inside launchAssignment() shaped as data so each side
+// (Windows PS1, Mac bash) can render them into its own script idiom.
+interface LaunchScriptContext {
+  plumeDir: string
+  projectDir: string
+  assignmentName: string
+  headerLabel: string     // "Think" / "Build" / "Resume" / …
+  rawPrompt: string       // unescaped; helpers escape per-shell
+  activityMessage: string
+  isResume: boolean
+  isFirstRun: boolean
 }
 
 const WORKFLOW_MODE_META: Record<InvocationMode, WorkflowModeMeta> = {
@@ -200,52 +216,61 @@ export async function launchAssignment(args: LaunchArgs): Promise<{ projectDir: 
     fs.writeFileSync(path.join(projectDir, 'CLAUDE.md'), claudeMdContent, 'utf-8')
   }
 
-  // Build the PowerShell launcher. Three invocation shapes, chosen here at
-  // generation time based on the mode + whether this is the first launch:
-  //
-  //   resume         →  claude --continue              (no prompt, quiet resume)
-  //   first run      →  claude <prompt>                (creates .started + sends mode prompt)
-  //   switch-mode    →  claude --continue <prompt>     (resumes existing session, auto-submits new mode prompt)
-  //
-  // Windows gotchas:
-  //   • claude.cmd is an npm shim; the call operator `&` with an absolute
-  //     path is the most reliable way to pass quoted args across the
-  //     PS → cmd.exe → node boundary.
-  //   • Single-quoted PS strings preserve `$` and backticks literally, which
-  //     is what we want for the prompt body.
-  //   • The PS1 is written with a UTF-8 BOM so PowerShell 5 parses it
-  //     correctly (otherwise it defaults to Windows-1252 and mis-decodes).
-  const launchScript = path.join(plumeDir, '_launch.ps1')
-
-  // PowerShell single-quoted strings need `'` doubled to `''` to escape.
-  const psEscape = (s: string) => s.replace(/'/g, "''")
-  const safeAssignmentName = psEscape(args.assignmentName).replace(/`/g, '``')
-
-  // Header label + prompt computation. For resume we skip the prompt block
-  // entirely — the PS1 just prints a header and runs `claude --continue`.
+  // Shape inputs shared by both platforms. The raw prompt text gets escaped
+  // per-platform inside the helpers — single-quote-for-PS on Windows,
+  // bash-safe on Mac.
   const headerLabel = isResume ? 'Resume' : modeMeta!.label
-  const initialPrompt = isResume
+  const rawInitialPrompt = isResume
     ? ''
-    : psEscape(
-        `Apply the ${modeMeta!.agent} agent to this assignment and start the full ${modeMeta!.label} workflow now. Use the metadata in CLAUDE.md as context.`
-      )
-
+    : `Apply the ${modeMeta!.agent} agent to this assignment and start the full ${modeMeta!.label} workflow now. Use the metadata in CLAUDE.md as context.`
   const activityMessage = isResume
     ? 'Resuming previous session...'
     : isFirstRun
       ? `Starting ${modeMeta!.label} workflow...`
       : `Resuming and switching to ${modeMeta!.label} workflow...`
 
-  // The actual `claude ...` line that ends the script. Everything else is
-  // identical across the three cases.
+  const scriptCtx: LaunchScriptContext = {
+    plumeDir,
+    projectDir,
+    assignmentName: args.assignmentName,
+    headerLabel,
+    rawPrompt: rawInitialPrompt,
+    activityMessage,
+    isResume,
+    isFirstRun,
+  }
+
+  if (isMac) {
+    const launchScript = path.join(plumeDir, '_launch.sh')
+    writeMacLaunchScript(launchScript, scriptCtx)
+    spawnMacTerminal(launchScript, projectDir)
+    return { projectDir }
+  }
+
+  // ── Windows path (existing behaviour) ─────────────────────────────────────
+  // PS1 launcher — three invocation shapes chosen at generation time:
+  //   resume         →  claude --continue              (quiet resume, no prompt)
+  //   first run      →  claude <prompt>                (creates .started + sends mode prompt)
+  //   switch-mode    →  claude --continue <prompt>     (resume + auto-submit new mode prompt)
+  //
+  // Gotchas baked into this path:
+  //   • claude.cmd is an npm shim; the call operator `&` with an absolute path
+  //     is the most reliable way to pass quoted args across PS → cmd.exe → node.
+  //   • Single-quoted PS strings preserve `$` and backticks literally.
+  //   • The PS1 is written with a UTF-8 BOM so PowerShell 5 parses it correctly.
+  const launchScript = path.join(plumeDir, '_launch.ps1')
+
+  // PowerShell single-quoted strings need `'` doubled to `''` to escape.
+  const psEscape = (s: string) => s.replace(/'/g, "''")
+  const safeAssignmentName = psEscape(args.assignmentName).replace(/`/g, '``')
+  const initialPrompt = psEscape(rawInitialPrompt)
+
   const claudeInvocation = isResume
     ? '& $claudeCmd.Source --continue'
     : isFirstRun
       ? '& $claudeCmd.Source $prompt'
       : '& $claudeCmd.Source --continue $prompt'
 
-  // Optional blocks: start-flag creation (first run only) and prompt display
-  // (workflow-mode only, skipped for resume).
   const startedFlagCreate = isFirstRun
     ? 'New-Item -Path $startedFlag -ItemType File -Force | Out-Null'
     : ''
@@ -422,4 +447,135 @@ Read-Host "  Claude exited. Press Enter to close"
   child.unref()
 
   return { projectDir }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// macOS launcher — bash script + osascript Terminal spawn
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Behaviour parity with the Windows PS1:
+//   • Print header (mode, assignment, project)
+//   • Check `claude` is on PATH, fail fast with a clear message if not
+//   • Schedule a delayed window-snap to the right half via AppleScript
+//   • Run one of three `claude …` invocations (resume / first / switch-mode)
+//   • Leave the Terminal window open after claude exits (wait for Enter)
+
+function writeMacLaunchScript(launchScript: string, ctx: LaunchScriptContext): void {
+  const safeName = shEscapeSingle(ctx.assignmentName)
+  const prompt = shEscapeSingle(ctx.rawPrompt)
+  const activity = shEscapeSingle(ctx.activityMessage)
+
+  // Pre-compute the right-half snap rectangle from the display the Plume Hub
+  // window is currently on (or the primary display as a fallback). Embedding
+  // at script-write time keeps the bash script free of screen-query logic.
+  const display = screen.getPrimaryDisplay()
+  const { workArea } = display
+  const halfW = Math.floor(workArea.width / 2)
+  const posX1 = workArea.x + halfW
+  const posY1 = workArea.y
+  const posX2 = workArea.x + workArea.width
+  const posY2 = workArea.y + workArea.height
+
+  // Three invocation shapes. We intentionally do NOT exec claude with --
+  // redirection here — we want the user to see its TUI in the foreground.
+  const claudeInvocation = ctx.isResume
+    ? `claude --continue`
+    : ctx.isFirstRun
+      ? `claude "$PROMPT"`
+      : `claude --continue "$PROMPT"`
+
+  // Optional sections — parallel structure to the Windows script.
+  const startedFlagCreate = ctx.isFirstRun
+    ? `touch "$PWD/.plume/.started"`
+    : ''
+
+  const promptBlock = ctx.isResume
+    ? ''
+    : `PROMPT='${prompt}'
+# Copy the initial prompt to the clipboard so the user can paste it manually
+# if Claude's auto-send path ever fails.
+printf '%s' "$PROMPT" | pbcopy 2>/dev/null || true
+echo "  Initial prompt (copied to clipboard):"
+echo "  | $PROMPT"
+echo ""
+echo "  Claude will auto-send this. If not, press Cmd+V then Return."
+echo ""`
+
+  // AppleScript snap — fires after a 2s delay in a backgrounded subshell so
+  // Terminal + the claude TUI have time to paint before we move the window.
+  const snapBlock = `(sleep 2 && osascript <<'APPLESCRIPT'
+tell application "Terminal"
+  if (count of windows) is 0 then return
+  try
+    set bounds of front window to {${posX1}, ${posY1}, ${posX2}, ${posY2}}
+  end try
+end tell
+APPLESCRIPT
+) &`
+
+  const scriptBody = `#!/bin/bash
+# Auto-generated by Plume Hub — do not edit by hand.
+# Mode:       ${ctx.headerLabel}
+# Assignment: ${ctx.assignmentName}
+set -u
+
+${snapBlock}
+
+echo ""
+echo "  PLUME HUB"
+echo "  Mode:       ${ctx.headerLabel}"
+echo "  Assignment: ${safeName}"
+echo "  Project:    $PWD"
+echo ""
+
+# ── Locate the claude CLI ───────────────────────────────────────────────────
+if ! command -v claude >/dev/null 2>&1; then
+  echo "  ERROR: 'claude' not found on PATH."
+  echo "  Install Claude Code CLI from https://claude.com/download and relaunch Plume Hub."
+  echo ""
+  read -n 1 -s -r -p "  Press any key to close" _
+  exit 1
+fi
+echo "  Claude CLI: $(command -v claude)"
+echo ""
+
+echo "  ${activity}"
+echo ""
+
+${startedFlagCreate}
+
+${promptBlock}
+
+# Invoke Claude (resume / first-run / switch-mode — see launcher.ts).
+${claudeInvocation}
+
+echo ""
+read -n 1 -s -r -p "  Claude exited. Press any key to close" _
+`
+
+  fs.writeFileSync(launchScript, scriptBody, 'utf-8')
+  // Make it executable. `bash <script>` works either way, but an executable
+  // bit signals intent and keeps future shell integrations happy.
+  try { fs.chmodSync(launchScript, 0o755) } catch { /* best-effort */ }
+}
+
+function spawnMacTerminal(launchScript: string, projectDir: string): void {
+  // `osascript -e "tell application \"Terminal\" to do script …"` pops open
+  // a new Terminal window running our script. Using `bash <script>` rather
+  // than relying on the shebang means users don't need a +x bit or the
+  // `.command` extension → `Terminal` association trick.
+  //
+  // We `cd` into projectDir first so `$PWD` inside the script is the
+  // assignment folder — same invariant the Windows launcher has via `cwd:`.
+  const quotedDir = shEscapeSingle(projectDir)
+  const quotedScript = shEscapeSingle(launchScript)
+  const innerCmd = `cd '${quotedDir}' && bash '${quotedScript}'`
+  const applescript = `tell application "Terminal" to do script "${applescriptEscape(innerCmd)}"`
+
+  const child = spawn('osascript', ['-e', applescript], {
+    detached: true,
+    stdio: 'ignore',
+  })
+  child.on('error', () => { /* ignore — never block launch */ })
+  child.unref()
 }
