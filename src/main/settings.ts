@@ -39,7 +39,8 @@ You are working on the Canvas assignment listed above. The student picked the **
 `
 
 const DEFAULT_SETTINGS: Settings = {
-  canvasBaseUrl: 'https://canvas.uoregon.edu',
+  // User enters their institution's Canvas base URL during onboarding.
+  canvasBaseUrl: '',
   canvasToken: '',
   canvasCourseIds: [],
   corner: 'top-right',

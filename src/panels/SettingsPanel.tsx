@@ -165,6 +165,7 @@ export function SettingsPanel() {
               <Field label="Base URL">
                 <input
                   className="input-field"
+                  placeholder="https://canvas.yourschool.edu"
                   value={settings.canvasBaseUrl}
                   onChange={(e) => update('canvasBaseUrl', e.target.value)}
                 />

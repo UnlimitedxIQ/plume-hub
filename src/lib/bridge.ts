@@ -18,7 +18,8 @@ export const getSettings = () =>
   isElectron()
     ? window.plume!.settings.get()
     : Promise.resolve({
-        canvasBaseUrl: 'https://canvas.uoregon.edu',
+        // Browser-dev fallback — real settings come from Electron's IPC in production.
+        canvasBaseUrl: '',
         canvasToken: '',
         canvasCourseIds: [],
         corner: 'top-right' as const,

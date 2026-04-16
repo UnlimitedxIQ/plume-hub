@@ -25,8 +25,9 @@ export function OnboardingOverlay({ onComplete }: Props) {
   })
   const [selected, setSelected] = useState<Provider | null>(null)
 
-  // Step 1 — Canvas setup
-  const [baseUrl, setBaseUrl] = useState('https://canvas.uoregon.edu')
+  // Step 1 — Canvas setup. User enters their institution's URL (e.g.
+  // https://canvas.yourschool.edu) during onboarding.
+  const [baseUrl, setBaseUrl] = useState('')
   const [token, setToken] = useState('')
   const [tokenStatus, setTokenStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [tokenUser, setTokenUser] = useState('')
@@ -203,6 +204,7 @@ export function OnboardingOverlay({ onComplete }: Props) {
                       <span className="text-xs text-zinc-400">Canvas URL</span>
                       <input
                         className="input-field"
+                        placeholder="https://canvas.yourschool.edu"
                         value={baseUrl}
                         onChange={(e) => setBaseUrl(e.target.value)}
                       />
