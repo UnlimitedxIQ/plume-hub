@@ -8,10 +8,11 @@
     "dev:vite": "vite",
     "dev:electron": "wait-on tcp:5173 && tsc -p tsconfig.main.json && cross-env NODE_ENV=development electron .",
     "build": "vite build && tsc -p tsconfig.main.json",
+    "build:icons": "node scripts/generate-icons.mjs",
     "bundle:library": "node scripts/bundle-user-library.mjs",
-    "dist": "npm run bundle:library && npm run build && electron-builder",
-    "dist:win": "npm run bundle:library && npm run build && electron-builder --win",
-    "dist:mac": "npm run bundle:library && npm run build && electron-builder --mac",
+    "dist": "npm run build:icons && npm run bundle:library && npm run build && electron-builder",
+    "dist:win": "npm run build:icons && npm run bundle:library && npm run build && electron-builder --win",
+    "dist:mac": "npm run build:icons && npm run bundle:library && npm run build && electron-builder --mac",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
@@ -22,6 +23,7 @@
     "better-sqlite3": "^12.8.0",
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.3",
+    "electron-updater": "^6.8.3",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.8.0",
     "mammoth": "^1.12.0",
@@ -42,7 +44,9 @@
     "cross-env": "^7.0.3",
     "electron": "^34.5.8",
     "electron-builder": "^26.8.1",
+    "png2icons": "^2.0.1",
     "postcss": "^8.5.9",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "vite": "^6.4.2",
@@ -74,12 +78,29 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "artifactName": "plume-hub-${version}-win-x64.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
     },
     "mac": {
       "target": "dmg",
+      "icon": "assets/icon.icns",
       "category": "public.app-category.productivity",
-      "identity": null
-    }
+      "identity": null,
+      "artifactName": "plume-hub-${version}-mac.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "UnlimitedxIQ",
+        "repo": "plume-hub"
+      }
+    ]
   }
 }

@@ -1,18 +1,44 @@
+<div align="center">
+
+<img src="assets/icon-256.png" alt="Plume Hub" width="128" height="128" />
+
 # Plume Hub
 
-A Canvas assignment workflow orchestrator for students using [Claude Code](https://docs.claude.com/en/docs/claude-code/overview).
+**Canvas + Claude Code for students. One click per assignment, four modes, zero config.**
 
-Plume Hub is a Windows desktop app that sits alongside your Canvas LMS dashboard and launches Claude Code workflows tailored to how deep you want to go on an assignment: a quick outline, a structural draft, a full submission-ready deliverable, or a complete exam-prep study pack.
+[![License: MIT](https://img.shields.io/badge/license-MIT-FEE123.svg?style=flat-square)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-006747.svg?style=flat-square)](#install)
+[![Latest Release](https://img.shields.io/github/v/release/UnlimitedxIQ/plume-hub?style=flat-square&color=006747)](../../releases/latest)
+[![Release Downloads](https://img.shields.io/github/downloads/UnlimitedxIQ/plume-hub/total?style=flat-square&color=FEE123&label=downloads)](../../releases)
+[![Last Commit](https://img.shields.io/github/last-commit/UnlimitedxIQ/plume-hub?style=flat-square&color=006747)](../../commits/main)
+
+</div>
+
+---
+
+Plume Hub is a desktop app that sits alongside your Canvas LMS dashboard and launches Claude Code workflows tailored to how deep you want to go on an assignment: a quick outline, a structural draft, a full submission-ready deliverable, or a complete exam-prep study pack.
 
 Every install comes with a curated library of Claude Code agents, skills, and MCP templates out of the box — you get a near-complete setup without configuring anything.
+
+> **Screenshots** live in [`docs/screenshots/`](docs/screenshots/) — fill in after a fresh install captures the Canvas dashboard, Library, Session, and Settings views.
 
 ---
 
 ## Install
 
-1. Download the latest `Plume Hub Setup X.Y.Z.exe` from the [Releases page](../../releases).
-2. Run it. Windows may warn about an unrecognized publisher on the first run — click **More info → Run anyway** (the installer is NSIS and signed but not yet EV-code-signed).
+**Windows**
+
+1. Download `plume-hub-X.Y.Z-win-x64.exe` from the [Releases page](../../releases/latest).
+2. Run it. Windows SmartScreen may warn about an unrecognized publisher — click **More info → Run anyway** (installer is NSIS, not yet EV-code-signed).
 3. Launch Plume Hub from the Start menu.
+
+**macOS**
+
+1. Download `plume-hub-X.Y.Z-mac.dmg` from the [Releases page](../../releases/latest).
+2. Drag **Plume Hub** into `/Applications`.
+3. First launch: right-click → **Open** → **Open** to bypass the Gatekeeper warning (the app is unsigned for v1.0.0).
+
+> The `.dmg` isn't always present for every release — see [Building for Mac](#building-for-mac) if you want to compile locally.
 
 ### Requirements
 

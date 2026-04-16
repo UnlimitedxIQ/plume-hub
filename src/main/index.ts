@@ -1,6 +1,7 @@
 import { app, BrowserWindow, screen, Menu } from 'electron'
 import path from 'path'
 import fs from 'fs'
+import { autoUpdater } from 'electron-updater'
 import { setupIpcHandlers } from './ipc-handlers'
 import { loadSettings, getSettings, saveSettings } from './settings'
 
@@ -34,8 +35,12 @@ function assetsDir(): string {
 }
 
 function resolveWindowIcon(): string | undefined {
-  const iconPath = path.join(assetsDir(), 'tray-icon.png')
-  return fs.existsSync(iconPath) ? iconPath : undefined
+  // Prefer the high-resolution master icon; fall back to the tray PNG
+  // only if the master doesn't exist yet (e.g. running pre-icon-gen commit).
+  const hires = path.join(assetsDir(), 'icon.png')
+  if (fs.existsSync(hires)) return hires
+  const tray = path.join(assetsDir(), 'tray-icon.png')
+  return fs.existsSync(tray) ? tray : undefined
 }
 
 // Clamp saved bounds to the current primary display so unplugging a monitor
@@ -117,6 +122,17 @@ app.whenReady().then(async () => {
   mainWindow = createWindow()
 
   setupIpcHandlers(mainWindow)
+
+  // Auto-update: on packaged builds only, check GitHub Releases on startup
+  // and surface an OS notification when a newer version is available. The
+  // electron-updater defaults (silent download, "install on quit") match the
+  // expectation for a student-facing desktop app — no update friction.
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      // Never block launch on update-check failures (e.g. offline, rate limit).
+      console.warn('[auto-update] check failed:', err?.message ?? err)
+    })
+  }
 })
 
 app.on('window-all-closed', () => {

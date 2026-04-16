@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Plume Hub app icon.
+    Design notes:
+      • Rounded square background — matches both macOS squircle and Windows 11
+        tile conventions at all sizes.
+      • Primary: UO green (#006747). Accent: UO yellow (#FEE123).
+      • Foreground: a stylized plume / feather rendered as geometric barbs
+        emerging from an angled rachis. Flat, bold, readable at 16px.
+  -->
+
+  <!-- Background: rounded square at ~22% corner radius -->
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="#006747"/>
+
+  <!-- Subtle inner gradient for depth -->
+  <defs>
+    <linearGradient id="bgShade" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00875c" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#00563d" stop-opacity="1"/>
+    </linearGradient>
+    <linearGradient id="plumeShade" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#FEE123" stop-opacity="1"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bgShade)"/>
+
+  <!--
+    Plume: central rachis (shaft) running diagonally, with 5 geometric
+    barbs on the upper-left side descending in length. The whole shape is
+    rotated ~20° for a sense of motion.
+  -->
+  <g transform="translate(512 512) rotate(-20) translate(-512 -512)">
+    <!-- Rachis: a long tapered quadrilateral from bottom-right to top-left -->
+    <path d="M 360 780 L 380 780 L 660 260 L 640 240 Z" fill="url(#plumeShade)"/>
+
+    <!-- Tip: small triangle capping the top of the rachis -->
+    <path d="M 640 240 L 660 260 L 675 225 Z" fill="#FEE123"/>
+
+    <!-- Barbs: 6 leaf-shaped strokes on the LEFT side of the rachis, descending -->
+    <g fill="url(#plumeShade)">
+      <path d="M 630 280 Q 480 280 350 350 Q 470 320 615 310 Z"/>
+      <path d="M 590 360 Q 420 360 280 450 Q 430 410 580 390 Z"/>
+      <path d="M 555 440 Q 380 440 240 540 Q 400 500 545 470 Z"/>
+      <path d="M 520 520 Q 340 520 220 620 Q 370 590 510 550 Z"/>
+      <path d="M 480 610 Q 320 610 220 700 Q 360 680 470 640 Z"/>
+      <path d="M 430 705 Q 310 705 260 770 Q 350 760 420 735 Z"/>
+    </g>
+
+    <!-- Barbs on the RIGHT side: shorter, for asymmetry -->
+    <g fill="#FEE123" opacity="0.85">
+      <path d="M 660 300 Q 740 330 770 400 Q 720 350 655 330 Z"/>
+      <path d="M 620 390 Q 690 430 720 500 Q 680 450 615 420 Z"/>
+      <path d="M 580 480 Q 640 520 660 590 Q 630 540 575 510 Z"/>
+      <path d="M 540 570 Q 590 610 600 670 Q 580 630 535 600 Z"/>
+    </g>
+  </g>
+</svg>
