@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, XCircle, Loader2, RefreshCw } from 'lucide-react'
 import { detectProviders, validateCanvasToken, getSettings, saveSettings } from '../lib/bridge'
+import iconUrl from '../../assets/icon.png'
 
 interface Props {
   onComplete: () => void
@@ -100,7 +101,8 @@ export function OnboardingOverlay({ onComplete }: Props) {
         style={{ height: 580 }}
       >
         {/* Header */}
-        <div className="flex flex-col items-center gap-1 pt-10 pb-4">
+        <div className="flex flex-col items-center gap-2 pt-10 pb-4">
+          <img src={iconUrl} alt="Plume Hub" className="h-14 w-14 rounded-2xl" draggable={false} />
           <span className="text-lg font-bold tracking-tight text-white">Plume Hub</span>
           <span className="text-xs text-zinc-500">Let's get you set up</span>
 

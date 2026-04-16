@@ -1,6 +1,9 @@
 import React from 'react'
 import { GraduationCap, BookOpen, Store, Feather, Eye, Settings } from 'lucide-react'
 import type { TabId } from '../lib/store'
+// Vite-imported as a fingerprinted URL at build time — the master 1024×1024
+// PNG downscales cleanly at the 40×40 render size used in the rail.
+import iconUrl from '../../assets/icon.png'
 
 interface ShellProps {
   children: React.ReactNode
@@ -22,10 +25,13 @@ export function Shell({ children, activeTab, onTabClick }: ShellProps) {
     <div className="flex h-screen w-screen overflow-hidden bg-zinc-950">
       {/* Left rail: brand + 5 tabs */}
       <div className="flex w-16 flex-col items-center gap-2 border-r border-white/8 bg-zinc-900/80 pt-4 pb-4">
-        {/* Brand P — purely decorative now that the window has a native title bar */}
-        <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-plume-500 to-plume-700 shadow-md shadow-plume-900/40">
-          <span className="text-lg font-bold text-white" style={{ fontFamily: 'system-ui' }}>P</span>
-        </div>
+        {/* Brand mark — real app icon (the rounded square is baked into the PNG) */}
+        <img
+          src={iconUrl}
+          alt="Plume Hub"
+          className="mb-2 h-10 w-10 rounded-xl shadow-md shadow-plume-900/40"
+          draggable={false}
+        />
 
         <div className="h-px w-8 bg-white/8" />
 

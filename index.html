@@ -34,8 +34,14 @@
         opacity: 0;
         pointer-events: none;
       }
+      #plume-splash .logo {
+        width: 80px;
+        height: 80px;
+        border-radius: 18px;
+        box-shadow: 0 10px 30px -10px rgba(0, 135, 92, 0.6);
+      }
       #plume-splash .mark {
-        font-size: 32px;
+        font-size: 28px;
         font-weight: 700;
         letter-spacing: 0.02em;
         color: #22c55e;
@@ -59,6 +65,40 @@
   </head>
   <body>
     <div id="plume-splash">
+      <!-- Inline SVG mirrors assets/icon.svg so the splash never depends on
+           an asset path being resolvable at first paint. Update both places
+           if the logo changes. -->
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" aria-hidden="true">
+        <defs>
+          <linearGradient id="splashBg" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#00875c"/>
+            <stop offset="100%" stop-color="#00563d"/>
+          </linearGradient>
+          <linearGradient id="splashPlume" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#FEE123"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="1024" height="1024" rx="224" fill="url(#splashBg)"/>
+        <g transform="translate(512 512) rotate(-20) translate(-512 -512)">
+          <path d="M 360 780 L 380 780 L 660 260 L 640 240 Z" fill="url(#splashPlume)"/>
+          <path d="M 640 240 L 660 260 L 675 225 Z" fill="#FEE123"/>
+          <g fill="url(#splashPlume)">
+            <path d="M 630 280 Q 480 280 350 350 Q 470 320 615 310 Z"/>
+            <path d="M 590 360 Q 420 360 280 450 Q 430 410 580 390 Z"/>
+            <path d="M 555 440 Q 380 440 240 540 Q 400 500 545 470 Z"/>
+            <path d="M 520 520 Q 340 520 220 620 Q 370 590 510 550 Z"/>
+            <path d="M 480 610 Q 320 610 220 700 Q 360 680 470 640 Z"/>
+            <path d="M 430 705 Q 310 705 260 770 Q 350 760 420 735 Z"/>
+          </g>
+          <g fill="#FEE123" opacity="0.85">
+            <path d="M 660 300 Q 740 330 770 400 Q 720 350 655 330 Z"/>
+            <path d="M 620 390 Q 690 430 720 500 Q 680 450 615 420 Z"/>
+            <path d="M 580 480 Q 640 520 660 590 Q 630 540 575 510 Z"/>
+            <path d="M 540 570 Q 590 610 600 670 Q 580 630 535 600 Z"/>
+          </g>
+        </g>
+      </svg>
       <div class="mark">Plume Hub</div>
       <div class="spinner"></div>
       <div class="tag">Loading…</div>
