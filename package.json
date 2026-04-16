@@ -1,0 +1,78 @@
+{
+  "name": "plume-hub",
+  "version": "1.0.0",
+  "description": "Canvas assignment workflow orchestrator powered by Claude Code",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev:vite": "vite",
+    "dev:electron": "wait-on tcp:5173 && tsc -p tsconfig.main.json && cross-env NODE_ENV=development electron .",
+    "build": "vite build && tsc -p tsconfig.main.json",
+    "bundle:library": "node scripts/bundle-user-library.mjs",
+    "dist": "npm run bundle:library && npm run build && electron-builder",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "Bryson Smith",
+  "license": "MIT",
+  "dependencies": {
+    "@types/dompurify": "^3.0.5",
+    "better-sqlite3": "^12.8.0",
+    "date-fns": "^4.1.0",
+    "dompurify": "^3.3.3",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.8.0",
+    "mammoth": "^1.12.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.6.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.27",
+    "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3",
+    "electron": "^34.5.8",
+    "electron-builder": "^26.8.1",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "vite": "^6.4.2",
+    "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.plume.hub",
+    "productName": "Plume Hub",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/marketplace-skills",
+        "to": "marketplace-skills"
+      },
+      {
+        "from": "resources/plume-skills",
+        "to": "plume-skills"
+      },
+      {
+        "from": "resources/bundled-library",
+        "to": "bundled-library"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    }
+  }
+}

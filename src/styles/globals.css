@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #09090b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+
+/* Thin custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+@layer components {
+  .input-field {
+    @apply w-full rounded-lg border border-white/10 bg-zinc-800 px-3 py-2 text-xs text-zinc-200
+           outline-none placeholder:text-zinc-600
+           focus:border-plume-500/60 focus:ring-1 focus:ring-plume-500/30;
+  }
+
+  .btn-secondary {
+    @apply rounded-lg border border-white/10 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300
+           transition-colors hover:bg-zinc-700 disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply flex w-full items-center justify-center gap-2 rounded-xl bg-plume-500 py-2
+           text-sm font-medium text-white transition-colors hover:bg-plume-600 disabled:opacity-60;
+  }
+}
