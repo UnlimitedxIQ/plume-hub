@@ -98,10 +98,22 @@ export const onNavigate = (cb: (panel: string) => void) => {
 }
 
 // Provider detection
-export const detectProviders = () =>
+export interface DetectedProvider {
+  detected: boolean
+  path: string | null
+  checkedPaths: string[]
+}
+export interface ProviderDetection {
+  claude: DetectedProvider
+  codex: DetectedProvider
+}
+
+const EMPTY_PROVIDER: DetectedProvider = { detected: false, path: null, checkedPaths: [] }
+
+export const detectProviders = (): Promise<ProviderDetection> =>
   isElectron()
     ? window.plume!.provider.detect()
-    : Promise.resolve({ claude: false, codex: false })
+    : Promise.resolve({ claude: EMPTY_PROVIDER, codex: EMPTY_PROVIDER })
 
 // Skills scan (single list of agents — legacy)
 export const scanSkills = () =>

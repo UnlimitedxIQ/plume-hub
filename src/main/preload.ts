@@ -44,7 +44,11 @@ const api = {
     },
   },
   provider: {
-    detect: () => ipcRenderer.invoke('provider:detect') as Promise<{ claude: boolean; codex: boolean }>,
+    detect: () =>
+      ipcRenderer.invoke('provider:detect') as Promise<{
+        claude: { detected: boolean; path: string | null; checkedPaths: string[] }
+        codex: { detected: boolean; path: string | null; checkedPaths: string[] }
+      }>,
   },
   skills: {
     scan: () => ipcRenderer.invoke('skills:scan') as Promise<Array<{ name: string; description: string; file: string }>>,

@@ -12,6 +12,8 @@ type Provider = 'claude' | 'codex'
 
 interface ProviderStatus {
   detected: boolean
+  path: string | null
+  checkedPaths: string[]
   loading: boolean
 }
 
@@ -21,10 +23,11 @@ export function OnboardingOverlay({ onComplete }: Props) {
 
   // Step 0 — provider detection
   const [providers, setProviders] = useState<Record<Provider, ProviderStatus>>({
-    claude: { detected: false, loading: true },
-    codex: { detected: false, loading: true },
+    claude: { detected: false, path: null, checkedPaths: [], loading: true },
+    codex: { detected: false, path: null, checkedPaths: [], loading: true },
   })
   const [selected, setSelected] = useState<Provider | null>(null)
+  const [showDiagnostics, setShowDiagnostics] = useState(false)
 
   // Step 1 — Canvas setup. User enters their institution's URL (e.g.
   // https://canvas.yourschool.edu) during onboarding.
@@ -43,17 +46,28 @@ export function OnboardingOverlay({ onComplete }: Props) {
       if (settings.canvasToken) setToken(settings.canvasToken)
     })
 
-    // Detect providers
+    runDetection()
+  }, [])
+
+  function runDetection() {
+    setProviders((p) => ({
+      claude: { ...p.claude, loading: true },
+      codex: { ...p.codex, loading: true },
+    }))
     detectProviders().then((result) => {
       setProviders({
-        claude: { detected: result.claude, loading: false },
-        codex: { detected: result.codex, loading: false },
+        claude: { ...result.claude, loading: false },
+        codex: { ...result.codex, loading: false },
       })
-      // Auto-select first detected provider
-      if (result.claude) setSelected('claude')
-      else if (result.codex) setSelected('codex')
+      // Auto-select first detected provider if none chosen yet
+      setSelected((prev) => {
+        if (prev) return prev
+        if (result.claude.detected) return 'claude'
+        if (result.codex.detected) return 'codex'
+        return null
+      })
     })
-  }, [])
+  }
 
   function goTo(next: number) {
     setDir(next > step ? 1 : -1)
@@ -185,8 +199,43 @@ export function OnboardingOverlay({ onComplete }: Props) {
                   </div>
 
                   {!anyDetected && !providers.claude.loading && !providers.codex.loading && (
-                    <p className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
-                      No AI provider detected. Install Claude CLI to use Plume's assignment launcher.
+                    <div className="flex flex-col gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
+                      <p>
+                        No AI provider detected. Install Claude Code CLI, then click Re-check.
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={runDetection}
+                          className="inline-flex items-center gap-1 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-2 py-1 text-[11px] font-medium text-yellow-200 hover:bg-yellow-500/20"
+                        >
+                          <RefreshCw size={10} /> Re-check
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDiagnostics((v) => !v)}
+                          className="text-[11px] text-yellow-300/80 underline hover:text-yellow-200"
+                        >
+                          {showDiagnostics ? 'Hide' : 'Show'} paths checked
+                        </button>
+                      </div>
+                      {showDiagnostics && (
+                        <div className="mt-1 max-h-32 overflow-y-auto rounded bg-black/30 p-2 font-mono text-[10px] leading-relaxed text-yellow-200/70">
+                          <div className="mb-1 font-semibold">claude:</div>
+                          {providers.claude.checkedPaths.map((p, i) => (
+                            <div key={`c-${i}`}>{p}</div>
+                          ))}
+                          <div className="mt-2 mb-1 font-semibold">codex:</div>
+                          {providers.codex.checkedPaths.map((p, i) => (
+                            <div key={`x-${i}`}>{p}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {anyDetected && selected && providers[selected].path && (
+                    <p className="truncate rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-3 py-2 font-mono text-[10px] text-emerald-300/80">
+                      Found at: {providers[selected].path}
                     </p>
                   )}
                 </div>

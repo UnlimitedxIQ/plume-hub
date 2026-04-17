@@ -4,6 +4,13 @@ import fs from 'fs'
 import { autoUpdater } from 'electron-updater'
 import { setupIpcHandlers } from './ipc-handlers'
 import { loadSettings, getSettings, saveSettings } from './settings'
+import { enrichProcessPath } from './path-fix'
+
+// Enrich PATH BEFORE anything else so detection + launcher spawns inherit
+// the user's real shell PATH. GUI-launched Electron apps get a stripped PATH
+// from Explorer/launchd; without this, `where claude` / `command -v claude`
+// fails even when the CLI is installed.
+enrichProcessPath()
 
 const isDev = process.env.NODE_ENV === 'development'
 

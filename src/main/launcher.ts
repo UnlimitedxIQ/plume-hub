@@ -6,6 +6,7 @@ import { screen } from 'electron'
 import { getSettings } from './settings'
 import { ensureWorkflowAgentsInstalled } from './workflow-installer'
 import { isMac, shEscapeSingle, applescriptEscape } from './platform'
+import { detectProviders } from './provider-detect'
 
 export type WorkflowMode = 'think' | 'draft' | 'build' | 'study' | 'resume'
 
@@ -40,6 +41,14 @@ interface LaunchScriptContext {
   activityMessage: string
   isResume: boolean
   isFirstRun: boolean
+  /**
+   * Absolute path to the claude CLI resolved by provider-detect at launch
+   * time. If null, the spawned script falls back to PATH lookup
+   * (Get-Command on Windows / command -v on Mac). Injecting the resolved
+   * path avoids the class of bugs where Electron's detection succeeds but
+   * the spawned shell's PATH is different.
+   */
+  resolvedClaudePath: string | null
 }
 
 const WORKFLOW_MODE_META: Record<InvocationMode, WorkflowModeMeta> = {
@@ -229,6 +238,13 @@ export async function launchAssignment(args: LaunchArgs): Promise<{ projectDir: 
       ? `Starting ${modeMeta!.label} workflow...`
       : `Resuming and switching to ${modeMeta!.label} workflow...`
 
+  // Resolve claude's absolute path now so the spawned shell doesn't need a
+  // working PATH to find it. detectProviders() walks PATH + known install
+  // locations; if it comes up empty we leave resolvedClaudePath null and
+  // let the script fall back to its own PATH lookup.
+  const detected = detectProviders()
+  const resolvedClaudePath = detected.claude.path
+
   const scriptCtx: LaunchScriptContext = {
     plumeDir,
     projectDir,
@@ -238,6 +254,7 @@ export async function launchAssignment(args: LaunchArgs): Promise<{ projectDir: 
     activityMessage,
     isResume,
     isFirstRun,
+    resolvedClaudePath,
   }
 
   if (isMac) {
@@ -266,10 +283,15 @@ export async function launchAssignment(args: LaunchArgs): Promise<{ projectDir: 
   const initialPrompt = psEscape(rawInitialPrompt)
 
   const claudeInvocation = isResume
-    ? '& $claudeCmd.Source --continue'
+    ? '& $claudeExe --continue'
     : isFirstRun
-      ? '& $claudeCmd.Source $prompt'
-      : '& $claudeCmd.Source --continue $prompt'
+      ? '& $claudeExe $prompt'
+      : '& $claudeExe --continue $prompt'
+
+  // Escape for a PowerShell single-quoted literal.
+  const resolvedClaudeForPs = resolvedClaudePath
+    ? resolvedClaudePath.replace(/'/g, "''")
+    : ''
 
   const startedFlagCreate = isFirstRun
     ? 'New-Item -Path $startedFlag -ItemType File -Force | Out-Null'
@@ -372,20 +394,25 @@ Write-Host "  Project:    $PWD" -ForegroundColor DarkGray
 Write-Host ""
 
 # ── Locate the claude CLI ───────────────────────────────────────────────────
-# Plume's IPC 'provider:detect' uses 'where claude' at the Electron side; we
-# replicate that here so a broken PATH or missing install is immediately
-# visible to the student, not silently swallowed.
-$claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
-if (-not $claudeCmd) {
-    Write-Host "  ERROR: 'claude' not found on PATH." -ForegroundColor Red
-    Write-Host "  Plume spawned PowerShell but the Claude Code CLI isn't installed or isn't" -ForegroundColor Yellow
-    Write-Host "  visible in this shell's PATH. Install from https://claude.ai/download and" -ForegroundColor Yellow
-    Write-Host "  restart Plume Hub." -ForegroundColor Yellow
-    Write-Host ""
-    Read-Host "  Press Enter to close"
-    exit 1
+# Plume resolved claude's absolute path at launch time via provider-detect.
+# Prefer that path; fall back to a PATH lookup here if Plume couldn't find
+# one (e.g. student installed claude AFTER opening Plume Hub).
+$plumeResolvedClaude = '${resolvedClaudeForPs}'
+if ($plumeResolvedClaude -and (Test-Path -LiteralPath $plumeResolvedClaude)) {
+    $claudeExe = $plumeResolvedClaude
+} else {
+    $fallback = Get-Command claude -ErrorAction SilentlyContinue
+    if (-not $fallback) {
+        Write-Host "  ERROR: 'claude' not found." -ForegroundColor Red
+        Write-Host "  Plume Hub could not locate the Claude Code CLI. Install from" -ForegroundColor Yellow
+        Write-Host "  https://claude.ai/download and restart Plume Hub." -ForegroundColor Yellow
+        Write-Host ""
+        Read-Host "  Press Enter to close"
+        exit 1
+    }
+    $claudeExe = $fallback.Source
 }
-Write-Host "  Claude CLI: $($claudeCmd.Source)" -ForegroundColor DarkGray
+Write-Host "  Claude CLI: $claudeExe" -ForegroundColor DarkGray
 Write-Host ""
 
 $startedFlag = Join-Path $PWD ".plume\\.started"
@@ -478,11 +505,17 @@ function writeMacLaunchScript(launchScript: string, ctx: LaunchScriptContext): v
 
   // Three invocation shapes. We intentionally do NOT exec claude with --
   // redirection here — we want the user to see its TUI in the foreground.
+  // `$CLAUDE_EXE` is resolved inside the script (see scriptBody below):
+  // prefers Plume's detected absolute path, falls back to PATH.
   const claudeInvocation = ctx.isResume
-    ? `claude --continue`
+    ? `"$CLAUDE_EXE" --continue`
     : ctx.isFirstRun
-      ? `claude "$PROMPT"`
-      : `claude --continue "$PROMPT"`
+      ? `"$CLAUDE_EXE" "$PROMPT"`
+      : `"$CLAUDE_EXE" --continue "$PROMPT"`
+
+  const resolvedClaudeForSh = ctx.resolvedClaudePath
+    ? shEscapeSingle(ctx.resolvedClaudePath)
+    : ''
 
   // Optional sections — parallel structure to the Windows script.
   const startedFlagCreate = ctx.isFirstRun
@@ -529,14 +562,23 @@ echo "  Project:    $PWD"
 echo ""
 
 # ── Locate the claude CLI ───────────────────────────────────────────────────
-if ! command -v claude >/dev/null 2>&1; then
-  echo "  ERROR: 'claude' not found on PATH."
-  echo "  Install Claude Code CLI from https://claude.com/download and relaunch Plume Hub."
+# Prefer the absolute path Plume resolved at launch time; fall back to PATH
+# lookup if empty (e.g. student installed claude AFTER opening Plume Hub).
+PLUME_RESOLVED_CLAUDE='${resolvedClaudeForSh}'
+if [ -n "$PLUME_RESOLVED_CLAUDE" ] && [ -x "$PLUME_RESOLVED_CLAUDE" ]; then
+  CLAUDE_EXE="$PLUME_RESOLVED_CLAUDE"
+elif command -v claude >/dev/null 2>&1; then
+  CLAUDE_EXE="$(command -v claude)"
+else
+  echo "  ERROR: 'claude' not found."
+  echo "  Plume Hub could not locate the Claude Code CLI. Install it from"
+  echo "  https://claude.com/download and restart Plume Hub."
   echo ""
   read -n 1 -s -r -p "  Press any key to close" _
   exit 1
 fi
-echo "  Claude CLI: $(command -v claude)"
+export CLAUDE_EXE
+echo "  Claude CLI: $CLAUDE_EXE"
 echo ""
 
 echo "  ${activity}"

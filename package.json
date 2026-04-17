@@ -1,6 +1,6 @@
 {
   "name": "plume-hub",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Canvas assignment workflow orchestrator powered by Claude Code",
   "main": "dist/main/index.js",
   "scripts": {

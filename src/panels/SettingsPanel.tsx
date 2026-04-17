@@ -43,7 +43,10 @@ export function SettingsPanel() {
   const [courseInput, setCourseInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [providers, setProviders] = useState<{ claude: boolean; codex: boolean } | null>(null)
+  const [providers, setProviders] = useState<{
+    claude: { detected: boolean; path: string | null }
+    codex: { detected: boolean; path: string | null }
+  } | null>(null)
 
   useEffect(() => {
     getSettings().then((s) => {
@@ -144,14 +147,16 @@ export function SettingsPanel() {
             <div className="flex flex-col gap-2">
               <ProviderRow
                 name="Claude CLI"
-                detected={providers?.claude ?? false}
+                detected={providers?.claude.detected ?? false}
+                resolvedPath={providers?.claude.path ?? null}
                 active={settings.preferredProvider === 'claude'}
                 onSetActive={() => update('preferredProvider', 'claude')}
                 installUrl="https://claude.ai/download"
               />
               <ProviderRow
                 name="Codex CLI"
-                detected={providers?.codex ?? false}
+                detected={providers?.codex.detected ?? false}
+                resolvedPath={providers?.codex.path ?? null}
                 active={settings.preferredProvider === 'codex'}
                 onSetActive={() => update('preferredProvider', 'codex')}
                 installUrl="https://github.com/openai/codex"
@@ -752,12 +757,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function ProviderRow({
   name,
   detected,
+  resolvedPath,
   active,
   onSetActive,
   installUrl,
 }: {
   name: string
   detected: boolean
+  resolvedPath: string | null
   active: boolean
   onSetActive: () => void
   installUrl: string
@@ -774,11 +781,16 @@ function ProviderRow({
         )}
       </div>
 
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <div className="text-sm font-semibold text-zinc-100">{name}</div>
         <div className={`text-xs ${detected ? 'text-emerald-400' : 'text-zinc-500'}`}>
           {detected ? 'Installed and ready' : 'Not detected'}
         </div>
+        {detected && resolvedPath && (
+          <div className="mt-0.5 truncate font-mono text-[10px] text-zinc-500" title={resolvedPath}>
+            {resolvedPath}
+          </div>
+        )}
       </div>
 
       {detected ? (

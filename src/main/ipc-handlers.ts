@@ -1,5 +1,4 @@
 import { ipcMain, BrowserWindow, shell, app, screen } from 'electron'
-import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -17,6 +16,7 @@ import {
 } from './plugin-manager'
 import { getSettings, saveSettings } from './settings'
 import { fetchCatalog } from './marketplace-client'
+import { detectProviders as detectProvidersImpl } from './provider-detect'
 import { getVault } from './vault'
 import { installPack, uninstallPack } from './skill-installer'
 import { installMcp, uninstallMcp, type McpConfigTemplateInput } from './mcp-installer'
@@ -248,15 +248,7 @@ export function setupIpcHandlers(win: BrowserWindow): void {
 
   // ── Provider detection ───────────────────────────────────────────────────────
 
-  ipcMain.handle('provider:detect', () => {
-    const detect = (cmd: string) => {
-      try { execSync(cmd, { stdio: 'ignore' }); return true } catch { return false }
-    }
-    return {
-      claude: detect('where claude'),
-      codex: detect('where codex'),
-    }
-  })
+  ipcMain.handle('provider:detect', () => detectProvidersImpl())
 
   // ── Skills scan ──────────────────────────────────────────────────────────────
 

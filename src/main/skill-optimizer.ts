@@ -4,6 +4,7 @@ import path from 'path'
 import os from 'os'
 import { screen } from 'electron'
 import { isMac, shEscapeSingle, applescriptEscape } from './platform'
+import { detectProviders } from './provider-detect'
 
 // Spawns a Claude Code session in ~/.claude/agents/ and triggers the
 // optimize-skills agent. Mirrors launcher.ts's split-snap pattern, but with
@@ -39,6 +40,10 @@ export async function launchSkillOptimizer(): Promise<{ workingDir: string }> {
   // PS single-quote escape for the prompt body.
   const psEscape = (s: string) => s.replace(/'/g, "''")
   const prompt = psEscape(triggerPrompt('start'))
+
+  // Resolved claude path from provider-detect; empty string = fall back to PATH.
+  const resolvedClaude = detectProviders().claude.path
+  const resolvedClaudeForPs = resolvedClaude ? psEscape(resolvedClaude) : ''
 
   const ps1Content = `$Host.UI.RawUI.WindowTitle = 'Plume - Optimize Skills'
 $ErrorActionPreference = 'Continue'
@@ -109,16 +114,22 @@ Write-Host "  Scanning:   ~/.claude/agents/" -ForegroundColor White
 Write-Host "  Report to:  ~/plume-skills-audit.md" -ForegroundColor DarkGray
 Write-Host ""
 
-$claudeCmd = Get-Command claude -ErrorAction SilentlyContinue
-if (-not $claudeCmd) {
-    Write-Host "  ERROR: 'claude' not found on PATH." -ForegroundColor Red
-    Write-Host "  Install Claude Code CLI and restart Plume Hub." -ForegroundColor Yellow
-    Write-Host ""
-    Read-Host "  Press Enter to close"
-    exit 1
+$plumeResolvedClaude = '${resolvedClaudeForPs}'
+if ($plumeResolvedClaude -and (Test-Path -LiteralPath $plumeResolvedClaude)) {
+    $claudeExe = $plumeResolvedClaude
+} else {
+    $fallback = Get-Command claude -ErrorAction SilentlyContinue
+    if (-not $fallback) {
+        Write-Host "  ERROR: 'claude' not found." -ForegroundColor Red
+        Write-Host "  Install Claude Code CLI and restart Plume Hub." -ForegroundColor Yellow
+        Write-Host ""
+        Read-Host "  Press Enter to close"
+        exit 1
+    }
+    $claudeExe = $fallback.Source
 }
 
-Write-Host "  Claude CLI: $($claudeCmd.Source)" -ForegroundColor DarkGray
+Write-Host "  Claude CLI: $claudeExe" -ForegroundColor DarkGray
 Write-Host ""
 
 $prompt = '${prompt}'
@@ -126,7 +137,7 @@ try { Set-Clipboard -Value $prompt } catch { }
 Write-Host "  Launching optimize-skills agent..." -ForegroundColor Cyan
 Write-Host ""
 
-& $claudeCmd.Source $prompt
+& $claudeExe $prompt
 
 Write-Host ""
 Read-Host "  Claude exited. Press Enter to close"
@@ -170,6 +181,9 @@ function launchSkillOptimizerMac(workingDir: string): { workingDir: string } {
 
   const prompt = shEscapeSingle(triggerPrompt('open'))
 
+  const resolvedClaude = detectProviders().claude.path
+  const resolvedClaudeForSh = resolvedClaude ? shEscapeSingle(resolvedClaude) : ''
+
   // Right-half snap rectangle, embedded at script-write time.
   const { workArea } = screen.getPrimaryDisplay()
   const halfW = Math.floor(workArea.width / 2)
@@ -198,15 +212,20 @@ echo "  Scanning:   ~/.claude/agents/"
 echo "  Report to:  ~/plume-skills-audit.md"
 echo ""
 
-if ! command -v claude >/dev/null 2>&1; then
-  echo "  ERROR: 'claude' not found on PATH."
+PLUME_RESOLVED_CLAUDE='${resolvedClaudeForSh}'
+if [ -n "$PLUME_RESOLVED_CLAUDE" ] && [ -x "$PLUME_RESOLVED_CLAUDE" ]; then
+  CLAUDE_EXE="$PLUME_RESOLVED_CLAUDE"
+elif command -v claude >/dev/null 2>&1; then
+  CLAUDE_EXE="$(command -v claude)"
+else
+  echo "  ERROR: 'claude' not found."
   echo "  Install Claude Code CLI and restart Plume Hub."
   echo ""
   read -n 1 -s -r -p "  Press any key to close" _
   exit 1
 fi
 
-echo "  Claude CLI: $(command -v claude)"
+echo "  Claude CLI: $CLAUDE_EXE"
 echo ""
 
 PROMPT='${prompt}'
@@ -214,7 +233,7 @@ printf '%s' "$PROMPT" | pbcopy 2>/dev/null || true
 echo "  Launching optimize-skills agent..."
 echo ""
 
-claude "$PROMPT"
+"$CLAUDE_EXE" "$PROMPT"
 
 echo ""
 read -n 1 -s -r -p "  Claude exited. Press any key to close" _
