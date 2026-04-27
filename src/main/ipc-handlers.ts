@@ -172,6 +172,34 @@ export function setupIpcHandlers(win: BrowserWindow): void {
     }
   })
 
+  ipcMain.handle(
+    'canvas:list-text-submissions',
+    async (_e, args: { limit?: number } = {}) => {
+      const { canvasBaseUrl, canvasToken, canvasCourseIds } = getSettings()
+      if (!canvasToken) return { ok: false, error: 'No token configured' }
+      try {
+        const client = new CanvasClient(canvasBaseUrl, canvasToken)
+        let ids = canvasCourseIds
+        if (ids.length === 0) {
+          const courses = await client.listCourses()
+          ids = courses.map((c) => c.id)
+        }
+        const samples = await client.listIndividualSubmissions(
+          ids,
+          args.limit ?? 20,
+          (line) => {
+            if (!win.isDestroyed()) {
+              win.webContents.send('canvas:submission-progress', line)
+            }
+          },
+        )
+        return { ok: true, samples }
+      } catch (e) {
+        return { ok: false, error: (e as Error).message }
+      }
+    },
+  )
+
   ipcMain.handle('canvas:list-announcements', async () => {
     const { canvasBaseUrl, canvasToken, canvasCourseIds } = getSettings()
     if (!canvasToken) return { ok: false, announcements: [], error: 'No token' }

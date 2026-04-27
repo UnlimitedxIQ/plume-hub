@@ -13,6 +13,25 @@ const api = {
     listInstructors: (courseId: number) => ipcRenderer.invoke('canvas:list-instructors', courseId),
     sendMessage: (args: { recipientIds: string[]; subject: string; body: string }) =>
       ipcRenderer.invoke('canvas:send-message', args),
+    listTextSubmissions: (args: { limit?: number }) =>
+      ipcRenderer.invoke('canvas:list-text-submissions', args) as Promise<{
+        ok: boolean
+        samples?: Array<{
+          filename: string
+          content: string
+          assignmentName: string
+          courseCode: string
+          submittedAt: string | null
+        }>
+        error?: string
+      }>,
+    onSubmissionProgress: (cb: (line: string) => void): (() => void) => {
+      const handler = (_e: unknown, line: string) => cb(line)
+      ipcRenderer.on('canvas:submission-progress', handler)
+      return () => {
+        ipcRenderer.removeListener('canvas:submission-progress', handler)
+      }
+    },
   },
   launcher: {
     startAssignment: (args: {

@@ -64,6 +64,29 @@ export const sendCanvasMessage = (args: { recipientIds: string[]; subject: strin
     ? window.plume!.canvas.sendMessage(args)
     : Promise.resolve({ ok: false, error: 'Not in Electron' })
 
+// Canvas — auto writing-style sample harvest
+export interface CanvasWritingSample {
+  filename: string
+  content: string
+  assignmentName: string
+  courseCode: string
+  submittedAt: string | null
+}
+
+export const fetchCanvasWritingSamples = (args: { limit?: number } = {}) =>
+  isElectron()
+    ? window.plume!.canvas.listTextSubmissions(args)
+    : Promise.resolve({ ok: false, error: 'Not in Electron' } as {
+        ok: boolean
+        samples?: CanvasWritingSample[]
+        error?: string
+      })
+
+export const onCanvasSubmissionProgress = (cb: (line: string) => void): (() => void) => {
+  if (!isElectron()) return () => {}
+  return window.plume!.canvas.onSubmissionProgress(cb)
+}
+
 
 // Launcher
 export const startAssignment = (args: Parameters<PlumeAPI['launcher']['startAssignment']>[0]) =>
