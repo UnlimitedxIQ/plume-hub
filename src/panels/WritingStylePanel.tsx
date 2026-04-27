@@ -13,6 +13,7 @@ import {
   File as FileIcon,
   Copy,
   Download,
+  Wand2,
 } from 'lucide-react'
 import {
   listStyleProfiles,
@@ -22,13 +23,15 @@ import {
   setActiveStyleProfile,
   getSettings,
   onStyleAnalysisProgress,
+  fetchCanvasWritingSamples,
+  onCanvasSubmissionProgress,
   type StyleProfileMeta,
   type StyleSampleInput,
 } from '../lib/bridge'
 import { FileDropZone, type UploadedSample } from '../components/FileDropZone'
 
 type View = 'list' | 'create' | 'detail'
-type CreatePhase = 'form' | 'analyzing' | 'error'
+type CreatePhase = 'form' | 'fetching' | 'analyzing' | 'error'
 
 // Each sample tracks whether it came from an uploaded file (so we can show
 // the real filename) or from a pasted textarea (falls back to sample-N.txt).
@@ -68,6 +71,7 @@ export function WritingStylePanel() {
   ])
   const [createPhase, setCreatePhase] = useState<CreatePhase>('form')
   const [progressLines, setProgressLines] = useState<string[]>([])
+  const [fetchProgressLines, setFetchProgressLines] = useState<string[]>([])
   const [createError, setCreateError] = useState<string | null>(null)
 
   // detail-view state
@@ -84,6 +88,16 @@ export function WritingStylePanel() {
   useEffect(() => {
     const unsubscribe = onStyleAnalysisProgress((line) => {
       setProgressLines((prev) => {
+        const next = [...prev, line]
+        return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next
+      })
+    })
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    const unsubscribe = onCanvasSubmissionProgress((line) => {
+      setFetchProgressLines((prev) => {
         const next = [...prev, line]
         return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next
       })
@@ -157,8 +171,67 @@ export function WritingStylePanel() {
     setCreateSamples([emptySample(), emptySample()])
     setCreatePhase('form')
     setProgressLines([])
+    setFetchProgressLines([])
     setCreateError(null)
     setView('create')
+  }
+
+  function goToAutoCreate() {
+    setCreateName('')
+    setCreateSamples([emptySample(), emptySample()])
+    setCreatePhase('fetching')
+    setProgressLines([])
+    setFetchProgressLines([])
+    setCreateError(null)
+    setView('create')
+    void handleAutoFromCanvas()
+  }
+
+  async function handleAutoFromCanvas() {
+    try {
+      const result = await fetchCanvasWritingSamples({ limit: 20 })
+      if (!result.ok) {
+        setCreateError(result.error ?? 'Failed to read Canvas submissions')
+        setCreatePhase('error')
+        return
+      }
+      const samples = (result.samples ?? []).filter(
+        (s) => s.content.trim().length >= MIN_SAMPLE_CHARS,
+      )
+      if (samples.length < MIN_SAMPLES) {
+        setCreateError(
+          `Couldn't find at least ${MIN_SAMPLES} individual submissions in Canvas. Try uploading manually.`,
+        )
+        setCreatePhase('error')
+        return
+      }
+
+      const today = new Date().toISOString().slice(0, 10)
+      const autoName = `Canvas Auto · ${today}`
+
+      setCreatePhase('analyzing')
+      setProgressLines([])
+
+      const styleSamples: StyleSampleInput[] = samples.map((s) => ({
+        filename: s.filename,
+        content: s.content,
+      }))
+      const analyzeResult = await analyzeStyle({ name: autoName, samples: styleSamples })
+      if (!analyzeResult.ok || !analyzeResult.profileId) {
+        setCreateError(analyzeResult.error ?? 'Analysis failed')
+        setCreatePhase('error')
+        return
+      }
+      await setActiveStyleProfile(analyzeResult.profileId)
+      setActiveId(analyzeResult.profileId)
+      await refreshProfiles()
+      setSelectedId(analyzeResult.profileId)
+      setView('detail')
+      await loadDetail(analyzeResult.profileId)
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Unknown error')
+      setCreatePhase('error')
+    }
   }
 
   async function goToDetail(id: string) {
@@ -269,12 +342,21 @@ export function WritingStylePanel() {
         </div>
 
         {view === 'list' && (
-          <button
-            onClick={goToCreate}
-            className="flex items-center gap-1.5 rounded-lg border border-plume-500/40 bg-plume-500/15 px-3 py-1.5 text-xs font-semibold text-plume-300 transition-colors hover:bg-plume-500/25"
-          >
-            <Plus size={12} /> New profile
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={goToAutoCreate}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:bg-zinc-700"
+              title="Auto-create from your last 20 individual Canvas submissions"
+            >
+              <Wand2 size={12} /> Auto from Canvas
+            </button>
+            <button
+              onClick={goToCreate}
+              className="flex items-center gap-1.5 rounded-lg border border-plume-500/40 bg-plume-500/15 px-3 py-1.5 text-xs font-semibold text-plume-300 transition-colors hover:bg-plume-500/25"
+            >
+              <Plus size={12} /> New profile
+            </button>
+          </div>
         )}
       </div>
 
@@ -296,6 +378,7 @@ export function WritingStylePanel() {
                 profiles={profiles}
                 activeId={activeId}
                 onCreate={goToCreate}
+                onAuto={goToAutoCreate}
                 onOpen={goToDetail}
                 onSetActive={handleSetActive}
                 onDelete={handleDelete}
@@ -347,6 +430,7 @@ export function WritingStylePanel() {
                   onAnalyze={handleAnalyze}
                 />
               )}
+              {createPhase === 'fetching' && <AutoFetchingState lines={fetchProgressLines} />}
               {createPhase === 'analyzing' && <AnalyzingState lines={progressLines} />}
               {createPhase === 'error' && (
                 <ErrorState
@@ -407,6 +491,7 @@ function ListView({
   profiles,
   activeId,
   onCreate,
+  onAuto,
   onOpen,
   onSetActive,
   onDelete,
@@ -416,6 +501,7 @@ function ListView({
   profiles: StyleProfileMeta[]
   activeId: string | null
   onCreate: () => void
+  onAuto: () => void
   onOpen: (id: string) => void
   onSetActive: (id: string) => void
   onDelete: (id: string) => void
@@ -439,7 +525,7 @@ function ListView({
   }
 
   if (profiles.length === 0) {
-    return <EmptyState onCreate={onCreate} />
+    return <EmptyState onCreate={onCreate} onAuto={onAuto} />
   }
 
   return (
@@ -465,7 +551,7 @@ function ListView({
   )
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({ onCreate, onAuto }: { onCreate: () => void; onAuto: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -483,12 +569,20 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
           drafts an assignment, it sounds like you wrote it. Takes about a minute.
         </div>
       </div>
-      <button
-        onClick={onCreate}
-        className="mt-1 flex items-center gap-1.5 rounded-lg bg-plume-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-plume-600"
-      >
-        <Plus size={12} /> Create your first profile
-      </button>
+      <div className="mt-1 flex flex-col items-center gap-2">
+        <button
+          onClick={onAuto}
+          className="flex items-center gap-1.5 rounded-lg bg-plume-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-plume-600"
+        >
+          <Wand2 size={12} /> Auto from Canvas
+        </button>
+        <button
+          onClick={onCreate}
+          className="text-xs text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+        >
+          or upload manually
+        </button>
+      </div>
     </motion.div>
   )
 }
@@ -780,6 +874,44 @@ function AnalyzingState({ lines }: { lines: string[] }) {
           lines.map((line, i) => (
             <div key={i} className="truncate">
               {line || '\u00A0'}
+            </div>
+          ))
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+function AutoFetchingState({ lines }: { lines: string[] }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4 rounded-2xl border border-plume-500/30 bg-plume-500/5 p-8"
+    >
+      <motion.div
+        animate={{ rotate: [0, 8, -8, 0] }}
+        transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
+        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-plume-500/20"
+      >
+        <Wand2 size={22} className="text-plume-400" />
+      </motion.div>
+      <div className="text-center">
+        <div className="text-sm font-semibold text-zinc-100">
+          Reading your Canvas submissions
+        </div>
+        <div className="mt-1 text-xs text-zinc-500">
+          Pulling up to 20 individual (non-team) assignments. Group work is skipped.
+        </div>
+      </div>
+      <div className="flex max-h-40 w-full flex-col gap-1 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950/60 p-3 font-mono text-[10px] text-plume-400">
+        {lines.length === 0 ? (
+          <span className="text-zinc-600">Connecting to Canvas…</span>
+        ) : (
+          lines.map((line, i) => (
+            <div key={i} className="truncate">
+              {line || ' '}
             </div>
           ))
         )}
