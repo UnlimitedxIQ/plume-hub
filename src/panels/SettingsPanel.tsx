@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   CheckCircle2, XCircle, Loader2, Settings as SettingsIcon,
-  Zap, GraduationCap, Info, RefreshCw, Key, Trash2,
+  Zap, GraduationCap, RefreshCw, Key, Trash2,
   AlertTriangle, Plus, Download, Package, Check,
 } from 'lucide-react'
 import {
@@ -114,14 +114,13 @@ export function SettingsPanel() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-white/8 px-6 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-plume-500/15">
-          <SettingsIcon size={16} className="text-plume-400" />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-base font-bold text-zinc-100">Settings</h2>
-          <p className="text-xs text-zinc-500">Configure Plume Hub and connected services</p>
-        </div>
+      <div className="section-header">
+        <SettingsIcon size={16} className="text-plume-400" />
+        <h2 className="text-base font-bold text-zinc-100">Settings</h2>
+        <span className="hidden text-xs text-zinc-500 md:inline">
+          Configure Plume Hub and connected services
+        </span>
+        <div className="flex-1" />
         <button
           onClick={handleSave}
           disabled={saving}
@@ -253,21 +252,7 @@ export function SettingsPanel() {
 
           {/* ── Data management ──────────────────────────────────────────── */}
           <Section icon={<Trash2 size={14} />} title="Data Management">
-            <DataManagement />
-          </Section>
-
-          {/* ── Advanced ─────────────────────────────────────────────────── */}
-          <Section icon={<Info size={14} />} title="Advanced">
-            <button
-              onClick={rerunOnboarding}
-              className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-left transition-colors hover:border-white/20"
-            >
-              <RefreshCw size={14} className="text-zinc-400" />
-              <div className="flex-1">
-                <div className="text-sm font-medium text-zinc-200">Re-run onboarding</div>
-                <div className="text-xs text-zinc-500">Go through the setup wizard again</div>
-              </div>
-            </button>
+            <DataManagement onRerunOnboarding={rerunOnboarding} />
           </Section>
         </div>
       </div>
@@ -333,7 +318,8 @@ function VaultManager() {
   return (
     <div className="flex flex-col gap-2">
       {entries && entries.length > 0 ? (
-        entries.map((entry) => (
+        <div className="flex max-h-96 flex-col gap-2 overflow-y-auto pr-1">
+          {entries.map((entry) => (
           <div
             key={entry.key}
             className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3"
@@ -357,7 +343,8 @@ function VaultManager() {
               <Trash2 size={12} />
             </button>
           </div>
-        ))
+          ))}
+        </div>
       ) : (
         <div className="rounded-xl border border-dashed border-white/10 bg-zinc-900/40 px-4 py-6 text-center">
           <Key size={20} className="mx-auto mb-2 text-zinc-600" />
@@ -594,7 +581,7 @@ function PluginRow({
 
 // ── Data management ───────────────────────────────────────────────────────────
 
-function DataManagement() {
+function DataManagement({ onRerunOnboarding }: { onRerunOnboarding: () => void }) {
   const [confirming, setConfirming] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [checking, setChecking] = useState(false)
@@ -633,6 +620,17 @@ function DataManagement() {
         <div className="flex-1">
           <div className="text-sm font-medium text-zinc-200">Check for updates</div>
           <div className="text-xs text-zinc-500">{updateMsg || 'See if a newer version of Plume Hub is available'}</div>
+        </div>
+      </button>
+
+      <button
+        onClick={onRerunOnboarding}
+        className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-left transition-colors hover:border-white/20"
+      >
+        <RefreshCw size={14} className="text-zinc-400" />
+        <div className="flex-1">
+          <div className="text-sm font-medium text-zinc-200">Reset to setup wizard</div>
+          <div className="text-xs text-zinc-500">Re-run the first-launch onboarding</div>
         </div>
       </button>
 
@@ -706,7 +704,7 @@ function Section({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-zinc-400">{label}</span>
+      <span className="label-field">{label}</span>
       {children}
     </div>
   )
@@ -779,43 +777,3 @@ function ProviderRow({
   )
 }
 
-// ── Toggle row ────────────────────────────────────────────────────────────────
-
-function ToggleRow({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string
-  description?: string
-  checked: boolean
-  onChange: (v: boolean) => void
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3">
-      <div className="flex-1">
-        <div className="text-sm font-medium text-zinc-200">{label}</div>
-        {description && <div className="text-xs text-zinc-500">{description}</div>}
-      </div>
-      <ToggleSwitch checked={checked} onChange={onChange} />
-    </div>
-  )
-}
-
-function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!checked)}
-      className={`relative h-5 w-9 rounded-full transition-colors ${
-        checked ? 'bg-plume-500' : 'bg-zinc-700'
-      }`}
-    >
-      <span
-        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-          checked ? 'translate-x-4' : 'translate-x-0.5'
-        }`}
-      />
-    </button>
-  )
-}
