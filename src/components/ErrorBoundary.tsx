@@ -1,4 +1,6 @@
 import React from 'react'
+import { AlertTriangle } from 'lucide-react'
+import { clearAllData } from '../lib/bridge'
 
 // Top-level React error boundary. Catches rendering / lifecycle errors
 // anywhere in the tree and swaps in a simple recovery screen instead of a
@@ -34,13 +36,20 @@ export class ErrorBoundary extends React.Component<
     window.location.reload()
   }
 
+  handleClearData = async (): Promise<void> => {
+    // Escape hatch when reload loops on corrupted persisted state. Wipes
+    // settings + vault and relaunches the app from scratch.
+    await clearAllData()
+  }
+
   render() {
     if (!this.state.error) return this.props.children
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 p-8 text-zinc-200">
-        <div className="max-w-lg rounded-xl border border-red-500/30 bg-red-500/5 p-6 text-sm">
-          <div className="mb-2 text-base font-semibold text-red-300">
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-zinc-200">
+        <div className="w-full max-w-lg rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-sm">
+          <AlertTriangle size={26} className="mb-3 text-red-400" />
+          <div className="mb-2 text-base font-semibold text-zinc-100">
             Something went wrong
           </div>
           <div className="mb-4 text-zinc-400">
@@ -51,21 +60,36 @@ export class ErrorBoundary extends React.Component<
               href="https://github.com/UnlimitedxIQ/plume-hub/issues/new"
               target="_blank"
               rel="noreferrer"
-              className="text-plume-400 underline hover:text-plume-300"
+              className="font-semibold text-plume-400 hover:text-plume-300"
             >
               file an issue
             </a>{' '}
             with the message below.
           </div>
-          <pre className="mb-4 max-h-48 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 text-[11px] font-mono text-red-300">
-            {String(this.state.error.stack ?? this.state.error.message)}
-          </pre>
-          <button
-            onClick={this.handleReload}
-            className="rounded-lg bg-plume-500 px-4 py-2 text-xs font-semibold text-white hover:bg-plume-600"
-          >
-            Reload Plume Hub
-          </button>
+
+          <div className="mb-4 rounded-xl border border-red-500/20 bg-black/40">
+            <div className="border-b border-red-500/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+              Error details
+            </div>
+            <pre className="max-h-48 overflow-auto px-3 py-2 font-mono text-[11px] text-red-300">
+              {String(this.state.error.stack ?? this.state.error.message)}
+            </pre>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              onClick={this.handleReload}
+              className="flex-1 rounded-lg bg-plume-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-plume-600"
+            >
+              Reload Plume Hub
+            </button>
+            <button
+              onClick={this.handleClearData}
+              className="flex-1 rounded-lg border border-red-500/30 px-4 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10"
+            >
+              Clear data and restart
+            </button>
+          </div>
         </div>
       </div>
     )

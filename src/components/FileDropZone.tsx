@@ -119,19 +119,17 @@ export function FileDropZone({ onFiles, maxFiles, disabled = false }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <motion.div
+      <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={openPicker}
-        initial={false}
-        animate={{
-          borderColor: dragOver ? 'rgba(0, 103, 71, 0.8)' : 'rgba(255, 255, 255, 0.15)',
-          backgroundColor: dragOver ? 'rgba(0, 103, 71, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-        }}
-        transition={{ duration: 0.12 }}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-transform ${
-          disabled || busy ? 'pointer-events-none opacity-50' : 'hover:scale-[1.005]'
+        className={`relative flex cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-all duration-150 ${
+          dragOver
+            ? 'border-plume-500/60 bg-plume-500/[0.08]'
+            : 'border-white/15 bg-white/[0.02]'
+        } ${
+          disabled || busy ? 'pointer-events-none opacity-50' : 'hover:scale-[1.005] hover:border-white/25'
         }`}
       >
         <motion.div
@@ -146,7 +144,7 @@ export function FileDropZone({ onFiles, maxFiles, disabled = false }: Props) {
         </motion.div>
 
         <div className="flex flex-col items-center gap-0.5">
-          <div className="text-sm font-semibold text-zinc-100">
+          <div className="text-base font-bold text-zinc-100">
             {busy
               ? 'Reading files…'
               : dragOver
@@ -154,12 +152,15 @@ export function FileDropZone({ onFiles, maxFiles, disabled = false }: Props) {
               : 'Drag & drop writing samples'}
           </div>
           <div className="text-[11px] text-zinc-500">
-            or <span className="text-plume-400 underline">click to browse</span>
+            or{' '}
+            <span className="font-semibold text-zinc-400 transition-colors hover:text-plume-300">
+              click here to select
+            </span>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-1">
-          {['.txt', '.md', '.docx', '.rtf'].map((ext) => (
+          {['.txt', '.md', '.markdown', '.docx', '.rtf'].map((ext) => (
             <span
               key={ext}
               className="rounded-md border border-white/10 bg-zinc-900/60 px-1.5 py-[1px] font-mono text-[9px] text-zinc-400"
@@ -168,6 +169,16 @@ export function FileDropZone({ onFiles, maxFiles, disabled = false }: Props) {
             </span>
           ))}
         </div>
+
+        {busy && (
+          <div className="absolute inset-x-0 bottom-0 h-[2px] overflow-hidden bg-zinc-800/60">
+            <motion.div
+              className="h-full w-1/3 bg-plume-500"
+              animate={{ x: ['-100%', '300%'] }}
+              transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </div>
+        )}
 
         <input
           ref={inputRef}
@@ -181,7 +192,7 @@ export function FileDropZone({ onFiles, maxFiles, disabled = false }: Props) {
             e.target.value = ''
           }}
         />
-      </motion.div>
+      </div>
 
       {/* Error list for rejected files */}
       {errors.length > 0 && (
