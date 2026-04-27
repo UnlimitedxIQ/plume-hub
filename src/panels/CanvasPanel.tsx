@@ -227,16 +227,15 @@ export function CanvasPanel() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-white/8 px-6 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-plume-500/15">
-          <GraduationCap size={16} className="text-plume-400" />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-base font-bold text-zinc-100">Canvas Dashboard</h2>
-          <p className="text-xs text-zinc-500">
-            {courses.length} course{courses.length !== 1 ? 's' : ''} · {assignments.length} assignments · {announcements.length} announcements
-          </p>
-        </div>
+      <div className="section-header">
+        <GraduationCap size={16} className="text-plume-400" />
+        <h2 className="flex items-center gap-2 text-base font-bold text-zinc-100">
+          Canvas
+          <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+            {courses.length}C · {assignments.length}A · {announcements.length}N
+          </span>
+        </h2>
+        <div className="flex-1" />
         <button
           onClick={fetch}
           disabled={loading}
@@ -357,24 +356,17 @@ function MessageComposer({ courses }: { courses: Course[] }) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-zinc-900/60 backdrop-blur-sm">
-      {/* Label header */}
-      <div className="flex items-center gap-1.5 border-b border-white/8 px-3 py-2">
-        <Send size={10} className="text-plume-400" />
-        <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-          Message your instructor
-        </span>
-      </div>
-
-      {/* Body row */}
-      <div className="flex items-stretch border-b border-white/5">
-        {/* Course selector */}
+      {/* Row 1 — course selector + send */}
+      <div className="flex items-center gap-2 border-b border-white/[0.08] px-3 py-2">
+        <Send size={11} className="text-plume-400" />
+        <span className="section-label text-[10px]">Message instructor</span>
+        <div className="flex-1" />
         <select
           value={selectedCourseId}
           onChange={(e) => setSelectedCourseId(e.target.value === '' ? '' : Number(e.target.value))}
-          className={`flex-shrink-0 border-r border-white/8 bg-transparent px-3 py-2 text-[11px] font-semibold outline-none cursor-pointer ${
+          className={`rounded-md border border-white/10 bg-zinc-950/60 px-2 py-1 text-[11px] font-semibold outline-none ${
             selectedCourseId === '' ? 'text-zinc-500' : 'text-zinc-200'
           }`}
-          style={{ appearance: 'none', width: 150 }}
         >
           <option value="" className="bg-zinc-900">Select course…</option>
           {courses.map((c) => (
@@ -383,14 +375,33 @@ function MessageComposer({ courses }: { courses: Course[] }) {
             </option>
           ))}
         </select>
+        {result && (
+          <span className={`text-[10px] font-semibold ${result.ok ? 'text-plume-400' : 'text-red-400'}`}>
+            {result.msg}
+          </span>
+        )}
+        <button
+          onClick={handleSend}
+          disabled={!canSend}
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors ${
+            canSend
+              ? 'bg-plume-yellow text-plume-700 hover:brightness-110'
+              : 'cursor-not-allowed border border-white/[0.08] text-zinc-600'
+          }`}
+        >
+          <Send size={11} />
+          {sending ? 'Sending…' : 'Send'}
+        </button>
+      </div>
 
-        {/* Textarea */}
+      {/* Row 2 — textarea + hint */}
+      <div className="flex items-stretch">
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Type your question to the instructor…"
           rows={3}
-          className="flex-1 resize-none bg-transparent px-3 py-2 text-xs text-zinc-200 placeholder-zinc-500 outline-none"
+          className="flex-1 resize-none bg-transparent px-3 py-2 text-xs leading-relaxed text-zinc-200 placeholder-zinc-500 outline-none"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
               e.preventDefault()
@@ -398,33 +409,9 @@ function MessageComposer({ courses }: { courses: Course[] }) {
             }
           }}
         />
-
-        {/* Send button column */}
-        <div className="flex flex-shrink-0 items-center gap-2 px-3">
-          {result && (
-            <span className={`text-[10px] font-semibold ${result.ok ? 'text-plume-400' : 'text-red-400'}`}>
-              {result.msg}
-            </span>
-          )}
-          <button
-            onClick={handleSend}
-            disabled={!canSend}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors ${
-              canSend
-                ? 'bg-plume-yellow text-plume-700 hover:brightness-110'
-                : 'cursor-not-allowed border border-white/8 text-zinc-600'
-            }`}
-          >
-            <Send size={10} />
-            {sending ? 'Sending…' : 'Send'}
-          </button>
-        </div>
       </div>
-
-      {/* Hint row */}
-      <div className="flex items-center justify-between px-3 py-1.5 text-[9px] text-zinc-600">
-        <span>Sends via Canvas Inbox to all teachers / TAs in the course</span>
-        <span>Ctrl+Enter to send</span>
+      <div className="flex items-center justify-end px-3 pb-1.5 text-[10px] text-zinc-700">
+        Ctrl+Enter to send
       </div>
     </div>
   )
@@ -615,26 +602,26 @@ function AssignmentRow({
     <div className={isLast ? '' : 'border-b border-white/5'}>
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-white/[0.03]"
+        className="flex w-full items-start gap-2 px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
       >
         <span
-          className="mt-1.5 h-[5px] w-[5px] flex-shrink-0 rounded-full"
+          className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full"
           style={{ backgroundColor: dotColor }}
         />
         <div className="flex-1 min-w-0">
-          <div className="mb-1 truncate text-[11px] font-semibold text-zinc-100">
+          <div className="mb-1 truncate text-xs font-semibold text-zinc-100">
             {assignment.name}
           </div>
-          <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1.5">
             <CanvasBadge dueAt={assignment.dueAt} />
             {assignment.pointsPossible != null && (
-              <span className="text-[9px] text-zinc-500">{formatPoints(assignment.pointsPossible)}</span>
+              <span className="text-[10px] text-zinc-500">{formatPoints(assignment.pointsPossible)}</span>
             )}
           </div>
         </div>
         <ChevronDown
-          size={11}
-          className="mt-1 flex-shrink-0 text-zinc-600 transition-transform"
+          size={14}
+          className="mt-0.5 flex-shrink-0 text-zinc-500 transition-transform"
           style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}
         />
       </button>
@@ -649,10 +636,8 @@ function AssignmentRow({
             className="overflow-hidden"
           >
             <div className="px-3 pb-3 pl-6">
-              {/* Mode buttons — student picks which workflow to invoke.
-                  Resume is adjacent, visually outlined (not filled) to read as
-                  an "action" rather than a fifth workflow mode. */}
-              <div className="mb-3 flex items-center gap-1.5">
+              {/* Primary modes — 2x2 grid */}
+              <div className="grid grid-cols-2 gap-1.5">
                 {MODE_BUTTONS.map(({ id, label, Icon, hint }) => {
                   const isStarting = startingMode === id
                   const isLaunched = launched?.mode === id
@@ -663,29 +648,31 @@ function AssignmentRow({
                       onClick={(e) => { e.stopPropagation(); handleLaunch(id) }}
                       disabled={disabled}
                       title={hint}
-                      className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold transition-colors ${
+                      className={`flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-bold transition-colors ${
                         isLaunched
                           ? 'border border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
                           : isStarting
                             ? 'border border-plume-500/60 bg-plume-500/20 text-plume-200'
                             : disabled
-                              ? 'border border-white/8 bg-white/[0.02] text-zinc-600'
+                              ? 'border border-white/[0.08] bg-white/[0.02] text-zinc-600'
                               : 'border border-plume-500/40 bg-plume-500/10 text-plume-300 hover:border-plume-500/70 hover:bg-plume-500/20'
                       }`}
                     >
                       {isStarting ? (
-                        <Loader2 size={10} className="animate-spin" />
+                        <Loader2 size={12} className="animate-spin" />
                       ) : isLaunched ? (
-                        <Check size={10} />
+                        <Check size={12} />
                       ) : (
-                        <Icon size={10} />
+                        <Icon size={12} />
                       )}
                       {label}
                     </button>
                   )
                 })}
+              </div>
 
-                {/* Resume button — quiet continue, no prompt injection */}
+              {/* Secondary actions — Resume + Open folder */}
+              <div className="mt-2 flex items-center gap-2 border-t border-white/5 pt-2">
                 {(() => {
                   const isStarting = startingMode === 'resume'
                   const isLaunched = launched?.mode === 'resume'
@@ -695,13 +682,13 @@ function AssignmentRow({
                       onClick={(e) => { e.stopPropagation(); handleLaunch('resume') }}
                       disabled={disabled}
                       title="Resume the previous Claude session (no prompt)"
-                      className={`ml-1 flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${
+                      className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold transition-colors ${
                         isLaunched
                           ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
                           : isStarting
                             ? 'border-plume-500/60 bg-plume-500/10 text-plume-200'
                             : disabled
-                              ? 'border-white/8 text-zinc-600'
+                              ? 'border-white/[0.08] text-zinc-600'
                               : 'border-white/15 text-zinc-300 hover:border-plume-500/50 hover:text-plume-300'
                       }`}
                     >
@@ -718,7 +705,7 @@ function AssignmentRow({
                 {launched && (
                   <button
                     onClick={(e) => { e.stopPropagation(); openProjectDir(launched.projectDir) }}
-                    className="ml-1 text-[10px] text-plume-400 hover:underline"
+                    className="text-[10px] text-plume-400 hover:underline"
                   >
                     Open folder →
                   </button>
@@ -728,11 +715,11 @@ function AssignmentRow({
               {/* Description */}
               {assignment.description ? (
                 <div
-                  className="prose prose-invert max-w-none text-[10px] leading-relaxed text-zinc-400"
+                  className="prose prose-invert mt-3 max-w-none text-[10px] leading-relaxed text-zinc-400"
                   dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(assignment.description) }}
                 />
               ) : (
-                <p className="text-[10px] italic text-zinc-600">No description</p>
+                <p className="mt-3 text-[10px] italic text-zinc-600">No description</p>
               )}
             </div>
           </motion.div>
@@ -751,20 +738,34 @@ function AnnouncementRow({
   announcement: Announcement
   isLast: boolean
 }) {
+  const [expanded, setExpanded] = useState(false)
   const timeAgo = announcement.postedAt ? getRelativeTime(announcement.postedAt) : ''
+  const message = announcement.message ?? ''
+  const isLong = message.length > 200
+
   return (
     <div className={`px-3 py-2 ${isLast ? '' : 'border-b border-white/5'}`}>
-      <div className="mb-0.5 truncate text-[11px] font-semibold text-zinc-100">
+      <div className="mb-0.5 truncate text-xs font-semibold text-zinc-100">
         {announcement.title}
       </div>
       <div className="mb-1 flex items-center gap-1">
-        <span className="text-[9px] text-zinc-500">{announcement.authorName}</span>
-        <span className="text-[9px] text-zinc-700">·</span>
-        <span className="text-[9px] text-zinc-500">{timeAgo}</span>
+        <span className="text-[10px] text-zinc-500">{announcement.authorName}</span>
+        <span className="text-[10px] text-zinc-700">·</span>
+        <span className="text-[10px] text-zinc-500">{timeAgo}</span>
       </div>
-      <div className="line-clamp-2 text-[10px] leading-snug text-zinc-500">
-        {announcement.message}
+      <div
+        className={`text-[10px] leading-snug text-zinc-500 ${expanded ? '' : 'line-clamp-2'}`}
+      >
+        {message}
       </div>
+      {isLong && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 text-[10px] font-semibold text-plume-400 hover:text-plume-300"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
     </div>
   )
 }
