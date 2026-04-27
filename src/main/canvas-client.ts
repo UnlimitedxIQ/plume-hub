@@ -41,6 +41,14 @@ export interface CanvasInstructor {
   enrollmentType: string
 }
 
+export interface CanvasSubmissionSample {
+  filename: string
+  content: string
+  assignmentName: string
+  courseCode: string
+  submittedAt: string | null
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<[^>]*>/g, ' ')
@@ -51,6 +59,14 @@ function stripHtml(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'submission'
 }
 
 function parseLink(header: string | undefined): string | null {
@@ -146,6 +162,54 @@ async function fetchAllPages<T>(firstUrl: string, token: string): Promise<T[]> {
     url = fetched.nextUrl
   }
   return results
+}
+
+// Downloads an attachment URL as a Buffer, following 3xx redirects (Canvas
+// often hands out S3 redirect URLs for attachment payloads). The Authorization
+// header is sent on the initial request; redirected URLs typically include a
+// signed `verifier` query param and don't need the header again.
+async function downloadAttachmentBuffer(
+  urlStr: string,
+  token: string,
+  redirectsLeft = 3,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(urlStr)
+    const transport = parsed.protocol === 'https:' ? https : http
+    const headers: Record<string, string> = { Accept: '*/*' }
+    // Only attach the bearer to the canvas host; redirected S3 URLs reject it.
+    if (parsed.hostname.endsWith(new URL(urlStr).hostname) && redirectsLeft === 3) {
+      headers.Authorization = `Bearer ${token}`
+    }
+    const req = transport.request(
+      {
+        hostname: parsed.hostname,
+        path: parsed.pathname + parsed.search,
+        method: 'GET',
+        headers,
+      },
+      (res) => {
+        const status = res.statusCode ?? 0
+        if (status >= 300 && status < 400 && res.headers.location && redirectsLeft > 0) {
+          res.resume()
+          const next = new URL(res.headers.location, urlStr).toString()
+          downloadAttachmentBuffer(next, token, redirectsLeft - 1).then(resolve, reject)
+          return
+        }
+        if (status >= 400) {
+          res.resume()
+          reject(new Error(`Attachment download ${status}`))
+          return
+        }
+        const chunks: Buffer[] = []
+        res.on('data', (c: Buffer) => chunks.push(c))
+        res.on('end', () => resolve(Buffer.concat(chunks)))
+      },
+    )
+    req.on('error', reject)
+    req.setTimeout(20000, () => req.destroy(new Error('Attachment download timeout')))
+    req.end()
+  })
 }
 
 export class CanvasClient {
@@ -304,6 +368,182 @@ export class CanvasClient {
         group_conversation: false,
       }
     )
+  }
+
+  // Pulls the student's most recent submissions from individual (non-group)
+  // assignments across the given courses. Used by the writing-style "Auto from
+  // Canvas" flow to harvest sample text for the analyzer. Returns up to `limit`
+  // parsed samples; assignments without parseable content (PDF only, image
+  // only, empty body) are skipped silently.
+  async listIndividualSubmissions(
+    courseIds: number[],
+    limit: number,
+    onProgress?: (line: string) => void,
+  ): Promise<CanvasSubmissionSample[]> {
+    if (courseIds.length === 0) return []
+    const log = (line: string) => onProgress?.(line)
+
+    const courses = await this.listCourses()
+    const codeFor = new Map(courses.map((c) => [c.id, c.courseCode] as const))
+
+    interface Candidate {
+      courseId: number
+      courseCode: string
+      assignmentId: number
+      assignmentName: string
+      submittedAt: string | null
+      bodyHtml: string | null
+      attachments: { url: string; filename: string; contentType?: string }[]
+    }
+
+    const candidates: Candidate[] = []
+
+    await Promise.all(
+      courseIds.map(async (courseId) => {
+        const courseCode = codeFor.get(courseId) ?? `course-${courseId}`
+        try {
+          const raw = await fetchAllPages<{
+            id: number
+            name: string
+            group_category_id: number | null
+            submission?: {
+              workflow_state?: string
+              submitted_at?: string | null
+              body?: string | null
+              submission_type?: string | null
+              attachments?: {
+                url: string
+                filename: string
+                'content-type'?: string
+                content_type?: string
+              }[]
+            } | null
+          }>(
+            `${this.baseUrl}/api/v1/courses/${courseId}/assignments?per_page=100&include[]=submission`,
+            this.token,
+          )
+          log(`Scanning ${courseCode} (${raw.length} assignments)`)
+
+          for (const a of raw) {
+            if (a.group_category_id != null) {
+              log(`Skipping group assignment "${a.name}"`)
+              continue
+            }
+            const sub = a.submission
+            if (!sub) continue
+            const submitted =
+              (sub.workflow_state && sub.workflow_state !== 'unsubmitted') ||
+              Boolean(sub.submitted_at)
+            if (!submitted) continue
+
+            const bodyHtml = sub.body && sub.body.trim().length > 0 ? sub.body : null
+            const attachments = (sub.attachments ?? []).map((att) => ({
+              url: att.url,
+              filename: att.filename,
+              contentType: att['content-type'] ?? att.content_type,
+            }))
+            if (!bodyHtml && attachments.length === 0) continue
+
+            candidates.push({
+              courseId,
+              courseCode,
+              assignmentId: a.id,
+              assignmentName: a.name,
+              submittedAt: sub.submitted_at ?? null,
+              bodyHtml,
+              attachments,
+            })
+          }
+        } catch (err) {
+          log(`Failed ${courseCode}: ${(err as Error).message}`)
+        }
+      }),
+    )
+
+    // Newest first.
+    candidates.sort((a, b) => {
+      if (!a.submittedAt) return 1
+      if (!b.submittedAt) return -1
+      return new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+    })
+
+    const SUPPORTED_TEXT_EXTS = ['.txt', '.md', '.markdown', '.text', '.rtf']
+    const samples: CanvasSubmissionSample[] = []
+
+    for (const cand of candidates) {
+      if (samples.length >= limit) break
+
+      // 1) Body (online_text_entry)
+      if (cand.bodyHtml) {
+        const plain = stripHtml(cand.bodyHtml)
+        if (plain.length >= 100) {
+          log(`Read ${cand.courseCode} — ${cand.assignmentName}`)
+          samples.push({
+            filename: `${slugify(cand.assignmentName)}.txt`,
+            content: plain,
+            assignmentName: cand.assignmentName,
+            courseCode: cand.courseCode,
+            submittedAt: cand.submittedAt,
+          })
+          continue
+        }
+      }
+
+      // 2) Attachments — first .docx, then first plain-text-ish ext.
+      const docx = cand.attachments.find((a) =>
+        a.filename.toLowerCase().endsWith('.docx'),
+      )
+      const text = cand.attachments.find((a) =>
+        SUPPORTED_TEXT_EXTS.some((ext) => a.filename.toLowerCase().endsWith(ext)),
+      )
+
+      if (docx) {
+        try {
+          log(`Parsing .docx attachment from "${cand.assignmentName}"`)
+          const buffer = await downloadAttachmentBuffer(docx.url, this.token)
+          // mammoth's main entry is the Node build (./lib/index.js); this
+          // import is intentionally NOT mammoth/mammoth.browser.
+          const mammoth = await import('mammoth')
+          const result = await mammoth.extractRawText({ buffer })
+          const cleaned = result.value.trim()
+          if (cleaned.length >= 100) {
+            samples.push({
+              filename: docx.filename,
+              content: cleaned,
+              assignmentName: cand.assignmentName,
+              courseCode: cand.courseCode,
+              submittedAt: cand.submittedAt,
+            })
+            continue
+          }
+        } catch (err) {
+          log(`Skipped "${cand.assignmentName}" (.docx error: ${(err as Error).message})`)
+        }
+      }
+
+      if (text) {
+        try {
+          const buffer = await downloadAttachmentBuffer(text.url, this.token)
+          const cleaned = buffer.toString('utf-8').trim()
+          if (cleaned.length >= 100) {
+            log(`Read ${cand.courseCode} — ${cand.assignmentName} (${text.filename})`)
+            samples.push({
+              filename: text.filename,
+              content: cleaned,
+              assignmentName: cand.assignmentName,
+              courseCode: cand.courseCode,
+              submittedAt: cand.submittedAt,
+            })
+            continue
+          }
+        } catch (err) {
+          log(`Skipped "${cand.assignmentName}" (attachment error: ${(err as Error).message})`)
+        }
+      }
+    }
+
+    log(`Done — found ${samples.length} sample${samples.length === 1 ? '' : 's'}`)
+    return samples
   }
 
   async getAssignmentDetail(courseId: number, assignmentId: number): Promise<CanvasAssignment> {
