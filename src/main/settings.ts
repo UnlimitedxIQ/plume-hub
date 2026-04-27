@@ -17,6 +17,8 @@ export interface Settings {
   preferredProvider: 'claude' | 'codex' | null
   onboardingComplete: boolean
   activeWritingStyleId: string | null
+  userMajor: string | null
+  userUseCases: string[]
   windowBounds?: WindowBounds
 }
 
@@ -44,6 +46,8 @@ const DEFAULT_SETTINGS: Settings = {
   preferredProvider: null,
   onboardingComplete: false,
   activeWritingStyleId: null,
+  userMajor: null,
+  userUseCases: [],
 }
 
 let currentSettings: Settings = { ...DEFAULT_SETTINGS }
