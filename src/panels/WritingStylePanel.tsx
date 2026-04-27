@@ -11,6 +11,8 @@ import {
   Loader2,
   FileText,
   File as FileIcon,
+  Copy,
+  Download,
 } from 'lucide-react'
 import {
   listStyleProfiles,
@@ -259,10 +261,8 @@ export function WritingStylePanel() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-white/8 px-6 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-plume-500/15">
-          <Feather size={16} className="text-plume-400" />
-        </div>
+      <div className="section-header">
+        <Feather size={16} className="text-plume-400" />
         <div className="flex-1 min-w-0">
           <h2 className="truncate text-base font-bold text-zinc-100">{title}</h2>
           <p className="truncate text-xs text-zinc-500">{subtitle}</p>
@@ -471,20 +471,21 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="flex flex-1 flex-col items-center justify-center gap-3 text-center"
+      className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center"
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-plume-500/15">
-        <Feather size={24} className="text-plume-400" />
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-plume-500/15">
+        <Feather size={26} className="text-plume-400" />
       </div>
-      <div>
+      <div className="max-w-sm">
         <div className="text-sm font-semibold text-zinc-100">No writing styles yet</div>
-        <div className="mt-1 text-xs text-zinc-500">
-          Create one and Plume will draft assignments in your voice.
+        <div className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+          Plume analyzes 2 to 5 of your past papers and learns your voice — so when it
+          drafts an assignment, it sounds like you wrote it. Takes about a minute.
         </div>
       </div>
       <button
         onClick={onCreate}
-        className="mt-2 flex items-center gap-1.5 rounded-lg bg-plume-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-plume-600"
+        className="mt-1 flex items-center gap-1.5 rounded-lg bg-plume-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-plume-600"
       >
         <Plus size={12} /> Create your first profile
       </button>
@@ -554,27 +555,34 @@ function ProfileCard({
         {isActive ? 'Active' : 'Inactive'}
       </button>
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          if (confirmDelete) {
-            onDelete()
-            setConfirmDelete(false)
-          } else {
-            setConfirmDelete(true)
-          }
-        }}
-        onMouseLeave={() => setConfirmDelete(false)}
-        title={confirmDelete ? 'Click again to confirm' : 'Delete profile'}
-        className={`flex h-8 items-center gap-1 rounded-lg border px-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-          confirmDelete
-            ? 'border-red-500/50 bg-red-500/15 text-red-300'
-            : 'border-white/10 text-zinc-500 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400'
-        }`}
-      >
-        <Trash2 size={11} />
-        {confirmDelete && <span>Confirm?</span>}
-      </button>
+      {confirmDelete ? (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+              setConfirmDelete(false)
+            }}
+            className="flex h-8 items-center gap-1 rounded-lg border border-red-500/50 bg-red-500/15 px-2 text-[10px] font-bold uppercase tracking-wider text-red-300 hover:bg-red-500/25"
+          >
+            <Trash2 size={11} /> Delete?
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(false) }}
+            className="flex h-8 items-center rounded-lg border border-white/10 px-2 text-[10px] font-semibold text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+          title="Delete profile"
+          className="flex h-8 items-center gap-1 rounded-lg border border-white/10 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 transition-colors hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+        >
+          <Trash2 size={11} />
+        </button>
+      )}
     </motion.div>
   )
 }
@@ -814,6 +822,7 @@ function DetailView({
   onDelete: () => void
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   if (state.loading) {
     return (
@@ -873,26 +882,69 @@ function DetailView({
         </div>
       </div>
 
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex items-center gap-2">
         <button
-          onClick={() => {
-            if (confirmDelete) {
-              onDelete()
-              setConfirmDelete(false)
-            } else {
-              setConfirmDelete(true)
+          onClick={async () => {
+            if (!markdown) return
+            try {
+              await navigator.clipboard.writeText(markdown)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 1600)
+            } catch {
+              /* clipboard blocked — silent */
             }
           }}
-          onMouseLeave={() => setConfirmDelete(false)}
-          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-            confirmDelete
-              ? 'border-red-500/50 bg-red-500/15 text-red-300'
-              : 'border-red-500/20 text-red-400 hover:border-red-500/40 hover:bg-red-500/10'
-          }`}
+          disabled={!markdown}
+          className="btn-secondary flex items-center gap-1.5 disabled:opacity-40"
         >
-          <Trash2 size={12} />
-          {confirmDelete ? 'Click again to confirm' : 'Delete profile'}
+          {copied ? <Check size={12} className="text-plume-400" /> : <Copy size={12} />}
+          {copied ? 'Copied' : 'Copy profile'}
         </button>
+        <button
+          onClick={() => {
+            if (!markdown) return
+            const blob = new Blob([markdown], { type: 'text/plain;charset=utf-8' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `${profile.name.replace(/[^a-z0-9-]+/gi, '-').toLowerCase() || 'writing-style'}.txt`
+            a.click()
+            URL.revokeObjectURL(url)
+          }}
+          disabled={!markdown}
+          className="btn-secondary flex items-center gap-1.5 disabled:opacity-40"
+        >
+          <Download size={12} /> Export .txt
+        </button>
+
+        <div className="flex-1" />
+
+        {confirmDelete ? (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                onDelete()
+                setConfirmDelete(false)
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-red-500/50 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/25"
+            >
+              <Trash2 size={12} /> Delete permanently
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10"
+          >
+            <Trash2 size={12} /> Delete profile
+          </button>
+        )}
       </div>
     </div>
   )
