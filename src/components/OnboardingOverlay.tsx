@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, XCircle, Loader2, RefreshCw } from 'lucide-react'
 import { detectProviders, validateCanvasToken, getSettings, saveSettings } from '../lib/bridge'
+import { useStore } from '../lib/store'
 import iconUrl from '../../assets/icon.png'
 
 interface Props {
@@ -15,6 +16,15 @@ interface ProviderStatus {
   path: string | null
   checkedPaths: string[]
   loading: boolean
+}
+
+const MAJOR_LABELS: Record<string, string> = {
+  cs: 'CS / Engineering',
+  business: 'Business',
+  'liberal-arts': 'Liberal Arts',
+  science: 'Science / Pre-Med',
+  design: 'Design / Art',
+  other: 'Other',
 }
 
 export function OnboardingOverlay({ onComplete }: Props) {
@@ -37,6 +47,11 @@ export function OnboardingOverlay({ onComplete }: Props) {
   const [tokenUser, setTokenUser] = useState('')
   const [tokenError, setTokenError] = useState('')
   const [canvasSkipped, setCanvasSkipped] = useState(false)
+
+  // Step 2 — personalization
+  const [userMajor, setUserMajor] = useState<string | null>(null)
+  const [userUseCases, setUserUseCases] = useState<string[]>([])
+  const [installing, setInstalling] = useState(false)
 
   useEffect(() => {
     // Pre-fill base URL from saved settings
@@ -89,6 +104,28 @@ export function OnboardingOverlay({ onComplete }: Props) {
     }
   }
 
+  function getPacksForProfile(major: string | null, useCases: string[]): string[] {
+    const packs = new Set(['student-essentials', 'academic-writing'])
+    if (major === 'cs') { packs.add('code-toolkit'); packs.add('devops-infra') }
+    if (major === 'business') { packs.add('business-finance'); packs.add('entrepreneurship') }
+    if (major === 'science') packs.add('data-analytics')
+    if (major === 'design') packs.add('design-creative')
+    if (useCases.includes('coding')) packs.add('code-toolkit')
+    if (useCases.includes('data')) packs.add('data-analytics')
+    if (useCases.includes('design-work')) packs.add('design-creative')
+    if (useCases.includes('content')) packs.add('content-marketing')
+    return [...packs]
+  }
+
+  async function handlePersonalizationContinue() {
+    setInstalling(true)
+    const packIds = getPacksForProfile(userMajor, userUseCases)
+    await Promise.allSettled(packIds.map((id) => useStore.getState().installPack(id)))
+    await saveSettings({ userMajor, userUseCases } as Record<string, unknown>)
+    setInstalling(false)
+    goTo(3)
+  }
+
   async function handleComplete() {
     await saveSettings({
       preferredProvider: selected,
@@ -122,7 +159,7 @@ export function OnboardingOverlay({ onComplete }: Props) {
 
           {/* Step dots */}
           <div className="mt-4 flex gap-2">
-            {[0, 1, 2].map((i) => (
+            {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -299,6 +336,83 @@ export function OnboardingOverlay({ onComplete }: Props) {
               )}
 
               {step === 2 && (
+                <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-100">Personalize your Claude</p>
+                    <p className="mt-1 text-xs text-zinc-500">We'll install the right skills for you.</p>
+                  </div>
+
+                  {/* Major — single select */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs text-zinc-400">What's your major?</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        ['cs', 'CS / Engineering'],
+                        ['business', 'Business'],
+                        ['liberal-arts', 'Liberal Arts'],
+                        ['science', 'Science / Pre-Med'],
+                        ['design', 'Design / Art'],
+                        ['other', 'Other'],
+                      ] as [string, string][]).map(([id, label]) => (
+                        <button
+                          key={id}
+                          onClick={() => setUserMajor(id === userMajor ? null : id)}
+                          className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                            userMajor === id
+                              ? 'border-plume-500/60 bg-plume-500/10 text-plume-300'
+                              : 'border-white/8 bg-zinc-900/60 text-zinc-300 hover:border-white/15'
+                          }`}
+                        >
+                          <div className={`h-3 w-3 flex-shrink-0 rounded-full border-2 ${
+                            userMajor === id ? 'border-plume-500 bg-plume-500' : 'border-zinc-600'
+                          }`} />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Use cases — multi-select chips */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs text-zinc-400">
+                      What do you use Claude for?{' '}
+                      <span className="text-zinc-600">(pick all that apply)</span>
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {([
+                        ['writing', 'Writing papers'],
+                        ['studying', 'Studying'],
+                        ['coding', 'Coding'],
+                        ['research', 'Research'],
+                        ['data', 'Data / Analytics'],
+                        ['design-work', 'Design work'],
+                        ['jobs', 'Job hunting'],
+                      ] as [string, string][]).map(([id, label]) => {
+                        const active = userUseCases.includes(id)
+                        return (
+                          <button
+                            key={id}
+                            onClick={() =>
+                              setUserUseCases((prev) =>
+                                active ? prev.filter((u) => u !== id) : [...prev, id]
+                              )
+                            }
+                            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                              active
+                                ? 'border-plume-500/60 bg-plume-500/10 text-plume-300'
+                                : 'border-white/8 bg-zinc-900/60 text-zinc-400 hover:border-white/15 hover:text-zinc-200'
+                            }`}
+                          >
+                            {active && <span className="mr-1">✓</span>}{label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
                 <div className="flex flex-1 flex-col gap-4">
                   <div>
                     <p className="text-sm font-semibold text-zinc-100">You're all set!</p>
@@ -316,6 +430,11 @@ export function OnboardingOverlay({ onComplete }: Props) {
                       value={canvasSkipped ? 'Skipped' : tokenStatus === 'ok' ? `Connected as ${tokenUser}` : 'Not connected'}
                       ok={tokenStatus === 'ok'}
                       warn={canvasSkipped}
+                    />
+                    <SummaryRow
+                      label="Skills"
+                      value={userMajor ? `Installed for ${MAJOR_LABELS[userMajor] ?? userMajor}` : 'Core packs installed'}
+                      ok={true}
                     />
                   </div>
 
@@ -359,12 +478,29 @@ export function OnboardingOverlay({ onComplete }: Props) {
           )}
 
           {step === 2 && (
+            <button
+              onClick={handlePersonalizationContinue}
+              disabled={installing}
+              className="btn-primary w-full disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {installing ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  Setting up your Claude...
+                </>
+              ) : (
+                'Continue'
+              )}
+            </button>
+          )}
+
+          {step === 3 && (
             <button onClick={handleComplete} className="btn-primary w-full">
               Open Plume Hub
             </button>
           )}
 
-          {step > 0 && step < 2 && (
+          {step > 0 && step < 3 && !installing && (
             <button
               onClick={() => goTo(step - 1)}
               className="text-center text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
