@@ -109,25 +109,20 @@ export function OnboardingOverlay({ onComplete }: Props) {
   ]
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-zinc-950/60 backdrop-blur-sm">
-      <div
-        className="flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/70 shadow-xl backdrop-blur-md"
-        style={{ height: 580 }}
-      >
+    <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-zinc-950/60 px-4 backdrop-blur-sm">
+      <div className="flex w-full max-w-md max-h-[85vh] flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/70 shadow-xl backdrop-blur-md">
         {/* Header */}
         <div className="flex flex-col items-center gap-2 pt-10 pb-4">
           <img src={iconUrl} alt="Plume Hub" className="h-14 w-14 rounded-2xl" draggable={false} />
           <span className="text-lg font-bold tracking-tight text-white">Plume Hub</span>
           <span className="text-xs text-zinc-500">Let's get you set up</span>
 
-          {/* Step dots */}
-          <div className="mt-4 flex gap-2">
+          {/* Segmented progress bar */}
+          <div className="progress-segment mt-4">
             {[0, 1, 2].map((i) => (
-              <div
+              <span
                 key={i}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === step ? 'w-5 bg-plume-500' : i < step ? 'w-1.5 bg-plume-500/40' : 'w-1.5 bg-zinc-700'
-                }`}
+                className={i <= step ? 'is-filled' : ''}
               />
             ))}
           </div>
@@ -300,9 +295,12 @@ export function OnboardingOverlay({ onComplete }: Props) {
 
               {step === 2 && (
                 <div className="flex flex-1 flex-col gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-100">You're all set!</p>
-                    <p className="mt-1 text-xs text-zinc-500">Here's what Plume found:</p>
+                  <div className="flex flex-col items-center gap-2 pb-1">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-plume-500/15">
+                      <CheckCircle2 size={26} className="text-plume-300" />
+                    </div>
+                    <p className="text-sm font-semibold text-zinc-100">You're all set</p>
+                    <p className="text-center text-xs text-zinc-500">Here's what Plume found:</p>
                   </div>
 
                   <div className="flex flex-col gap-2">
