@@ -22,9 +22,6 @@ export const getSettings = () =>
         canvasBaseUrl: '',
         canvasToken: '',
         canvasCourseIds: [],
-        corner: 'top-right' as const,
-        refreshIntervalMinutes: 15,
-        clickAwayToHide: true,
         claudeMdTemplate: '',
         preferredProvider: null,
         onboardingComplete: false,
@@ -67,10 +64,6 @@ export const sendCanvasMessage = (args: { recipientIds: string[]; subject: strin
     ? window.plume!.canvas.sendMessage(args)
     : Promise.resolve({ ok: false, error: 'Not in Electron' })
 
-export const onCanvasRefresh = (cb: () => void): (() => void) => {
-  if (isElectron()) return window.plume!.canvas.onRefresh(cb)
-  return () => { /* no-op */ }
-}
 
 // Launcher
 export const startAssignment = (args: Parameters<PlumeAPI['launcher']['startAssignment']>[0]) =>
@@ -89,9 +82,6 @@ export const optimizeSkills = () =>
     : Promise.resolve({ ok: false, error: 'Not in Electron' })
 
 // Window
-export const hideWindow = () => {
-  if (isElectron()) window.plume!.window.hide()
-}
 
 export const onNavigate = (cb: (panel: string) => void) => {
   if (isElectron()) window.plume!.window.onNavigate(cb)

@@ -53,19 +53,3 @@ export function formatPoints(points: number | null): string {
   return `${points.toFixed(1)} pts`
 }
 
-const SUBMISSION_LABELS: Record<string, string> = {
-  online_upload: 'Upload',
-  online_text_entry: 'Text',
-  online_url: 'URL',
-  online_quiz: 'Quiz',
-  discussion_topic: 'Discussion',
-  on_paper: 'On Paper',
-  external_tool: 'External',
-  media_recording: 'Media',
-  not_graded: 'Not Graded',
-  none: 'None',
-}
-
-export function submissionTypeLabel(type: string): string {
-  return SUBMISSION_LABELS[type] ?? type.replace(/_/g, ' ')
-}

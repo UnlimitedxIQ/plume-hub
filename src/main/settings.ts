@@ -13,9 +13,6 @@ export interface Settings {
   canvasBaseUrl: string
   canvasToken: string
   canvasCourseIds: number[]
-  corner: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'
-  refreshIntervalMinutes: number
-  clickAwayToHide: boolean
   claudeMdTemplate: string
   preferredProvider: 'claude' | 'codex' | null
   onboardingComplete: boolean
@@ -43,9 +40,6 @@ const DEFAULT_SETTINGS: Settings = {
   canvasBaseUrl: '',
   canvasToken: '',
   canvasCourseIds: [],
-  corner: 'top-right',
-  refreshIntervalMinutes: 15,
-  clickAwayToHide: true,
   claudeMdTemplate: DEFAULT_CLAUDE_MD_TEMPLATE,
   preferredProvider: null,
   onboardingComplete: false,

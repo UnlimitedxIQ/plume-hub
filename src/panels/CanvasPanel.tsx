@@ -12,7 +12,6 @@ import {
   listAnnouncements,
   listInstructors,
   sendCanvasMessage,
-  onCanvasRefresh,
   getSettings,
   startAssignment,
   openProjectDir,
@@ -149,7 +148,6 @@ export function CanvasPanel() {
 
   useEffect(() => {
     fetch()
-    onCanvasRefresh(fetch)
   }, [fetch])
 
   // Empty states

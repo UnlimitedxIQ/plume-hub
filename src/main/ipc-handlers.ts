@@ -669,9 +669,4 @@ export function setupIpcHandlers(win: BrowserWindow): void {
     return { ok: true, upToDate: true, latestVersion: app.getVersion() }
   })
 
-  // ── Window control ───────────────────────────────────────────────────────────
-
-  ipcMain.handle('window:hide', () => {
-    win.hide()
-  })
 }

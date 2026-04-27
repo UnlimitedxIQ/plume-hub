@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   CheckCircle2, XCircle, Loader2, Settings as SettingsIcon,
-  Zap, GraduationCap, Monitor, Info, RefreshCw, Key, Trash2,
+  Zap, GraduationCap, Info, RefreshCw, Key, Trash2,
   AlertTriangle, Plus, Download, Package, Check,
 } from 'lucide-react'
 import {
@@ -25,9 +25,6 @@ interface Settings {
   canvasBaseUrl: string
   canvasToken: string
   canvasCourseIds: number[]
-  corner: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left'
-  refreshIntervalMinutes: number
-  clickAwayToHide: boolean
   claudeMdTemplate: string
   preferredProvider: 'claude' | 'codex' | null
   onboardingComplete: boolean
@@ -232,46 +229,9 @@ export function SettingsPanel() {
                 </span>
               </Field>
 
-              <Field label="Refresh interval">
-                <select
-                  className="input-field"
-                  value={settings.refreshIntervalMinutes}
-                  onChange={(e) => update('refreshIntervalMinutes', Number(e.target.value))}
-                >
-                  {[5, 15, 30, 60].map((m) => (
-                    <option key={m} value={m}>
-                      Every {m} minutes
-                    </option>
-                  ))}
-                </select>
-              </Field>
             </div>
           </Section>
 
-          {/* ── Appearance ───────────────────────────────────────────────── */}
-          <Section icon={<Monitor size={14} />} title="Appearance" description="How Plume's icon behaves on your desktop">
-            <div className="flex flex-col gap-4">
-              <Field label="Icon corner">
-                <select
-                  className="input-field"
-                  value={settings.corner}
-                  onChange={(e) => update('corner', e.target.value as Settings['corner'])}
-                >
-                  <option value="top-right">Top right</option>
-                  <option value="top-left">Top left</option>
-                  <option value="bottom-right">Bottom right</option>
-                  <option value="bottom-left">Bottom left</option>
-                </select>
-              </Field>
-
-              <ToggleRow
-                label="Collapse on click-away"
-                description="Close the panel or dropdown when you click outside of it"
-                checked={settings.clickAwayToHide}
-                onChange={(v) => update('clickAwayToHide', v)}
-              />
-            </div>
-          </Section>
 
           {/* ── Vault ────────────────────────────────────────────────────── */}
           <Section

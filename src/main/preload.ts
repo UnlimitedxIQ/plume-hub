@@ -13,11 +13,6 @@ const api = {
     listInstructors: (courseId: number) => ipcRenderer.invoke('canvas:list-instructors', courseId),
     sendMessage: (args: { recipientIds: string[]; subject: string; body: string }) =>
       ipcRenderer.invoke('canvas:send-message', args),
-    onRefresh: (cb: () => void): (() => void) => {
-      const handler = () => cb()
-      ipcRenderer.on('canvas:refresh', handler)
-      return () => { ipcRenderer.removeListener('canvas:refresh', handler) }
-    },
   },
   launcher: {
     startAssignment: (args: {
@@ -38,7 +33,6 @@ const api = {
       }>,
   },
   window: {
-    hide: () => ipcRenderer.invoke('window:hide'),
     onNavigate: (cb: (panel: string) => void) => {
       ipcRenderer.on('nav:settings', () => cb('settings'))
     },
