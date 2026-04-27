@@ -184,12 +184,22 @@ export function SessionPanel() {
 
   if (!session) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-        <Eye size={32} className="text-zinc-600" />
-        <p className="text-base font-medium text-zinc-300">No active session</p>
-        <p className="max-w-sm text-sm text-zinc-500">
-          Click a mode button (Think / Draft / Build / Study) on any Canvas assignment to start a session. The live preview will appear here.
-        </p>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="section-header">
+          <Eye size={16} className="text-plume-400" />
+          <h2 className="text-base font-bold text-zinc-100">Live Preview</h2>
+        </div>
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="card flex max-w-md items-center gap-3">
+            <Eye size={20} className="flex-shrink-0 text-zinc-500" />
+            <div>
+              <p className="text-sm font-semibold text-zinc-200">No active session</p>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                Pick a mode (Think / Draft / Build / Study) on any Canvas assignment to start.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -311,10 +321,8 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-white/8 px-6 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-plume-500/15">
-          <Eye size={16} className="text-plume-400" />
-        </div>
+      <div className="section-header">
+        <Eye size={16} className="text-plume-400" />
         <div className="flex-1 min-w-0">
           <h2 className="truncate text-base font-bold text-zinc-100">{session.assignmentName}</h2>
           <div className="flex items-center gap-2 text-xs text-zinc-500">
@@ -342,15 +350,10 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
         </button>
       </div>
 
-      {/* Progress timeline */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-white/8 bg-zinc-900/30 px-6 py-3">
-        {phaseStates.map((phase, i) => (
-          <React.Fragment key={phase.id}>
-            {i > 0 && (
-              <div className={`h-px w-4 flex-shrink-0 ${phase.done ? 'bg-plume-500/50' : 'bg-white/10'}`} />
-            )}
-            <PhasePill phase={phase} />
-          </React.Fragment>
+      {/* Progress timeline — 2 rows × 3 phases */}
+      <div className="grid grid-cols-3 gap-1.5 border-b border-white/[0.08] bg-zinc-900/30 px-6 py-3">
+        {phaseStates.map((phase) => (
+          <PhasePill key={phase.id} phase={phase} />
         ))}
       </div>
 
@@ -443,8 +446,8 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
                 <div className="flex items-center gap-2 border-b border-white/8 bg-zinc-900/20 px-4 py-2">
                   <span className="truncate font-mono text-[11px] text-zinc-400">{selectedPath}</span>
                 </div>
-                <div className="flex-1 overflow-y-auto p-6">
-                  <div className="prose prose-invert prose-sm max-w-none">
+                <div className="flex-1 overflow-y-auto px-6 py-6">
+                  <div className="prose prose-invert prose-sm mx-auto max-w-3xl">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {content}
                     </ReactMarkdown>
@@ -501,12 +504,12 @@ function FileGroup({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-1.5 border-t border-white/5 bg-zinc-900/50 px-3 py-1.5">
-        <Icon size={10} className={color} />
-        <span className={`text-[10px] font-bold uppercase tracking-wider ${color}`}>
-          {label}
+      <div className="flex items-center gap-1.5 border-l-2 border-plume-500/30 bg-zinc-900/50 px-2.5 py-1.5">
+        <Icon size={11} className={color} />
+        <span className={`section-label text-[10px] ${color}`}>{label}</span>
+        <span className="ml-auto rounded-full bg-zinc-900 px-1.5 py-[1px] text-[9px] font-semibold text-zinc-500">
+          {files.length}
         </span>
-        <span className="ml-auto text-[9px] text-zinc-600">{files.length}</span>
       </div>
       {files.map((f) => (
         <FileRow
@@ -555,7 +558,9 @@ function FileRow({
         <div className="truncate text-[11px] font-medium">{file.name}</div>
         <div className="truncate text-[9px] text-zinc-600">{file.path}</div>
       </div>
-      <span className="flex-shrink-0 text-[9px] text-zinc-600">{ageLabel}</span>
+      <span className="inline-flex flex-shrink-0 items-center rounded-md border border-white/5 bg-zinc-900/60 px-1.5 py-0.5 font-mono text-[9px] text-zinc-500">
+        {ageLabel}
+      </span>
     </motion.button>
   )
 }
