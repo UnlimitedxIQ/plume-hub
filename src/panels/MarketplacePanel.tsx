@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Store, Search, Zap, Plug, Plus, Check, ChevronDown, ChevronUp,
-  RefreshCw, Cloud, CloudOff, Loader2, AlertCircle, Key,
+  RefreshCw, Loader2, AlertCircle, Key,
 } from 'lucide-react'
 import { useStore, type LivePack, type LiveMcp } from '../lib/store'
 import {
@@ -40,26 +40,23 @@ export function MarketplacePanel() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-white/8 px-6 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-plume-500/15">
-          <Store size={16} className="text-plume-400" />
-        </div>
-        <div className="flex-1">
-          <h2 className="text-base font-bold text-zinc-100">Marketplace</h2>
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <span>Install skill packs and MCP servers to extend Claude</span>
-            <CatalogStatus fetched={catalogFetched} loading={catalogLoading} />
-          </div>
-        </div>
+      <div className="section-header">
+        <Store size={16} className="text-plume-400" />
+        <h2 className="text-base font-bold text-zinc-100">Marketplace</h2>
+        <span className="hidden text-xs text-zinc-500 md:inline">
+          Install skill packs and MCP servers to extend Claude
+        </span>
 
-        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/60 px-3 py-1.5 focus-within:border-plume-500/50">
+        <div className="flex-1" />
+
+        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-1.5 focus-within:border-plume-500/50">
           <Search size={12} className="text-zinc-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search..."
-            className="w-52 bg-transparent text-xs text-zinc-200 placeholder-zinc-500 outline-none"
+            placeholder="Search…"
+            className="w-44 bg-transparent text-xs text-zinc-200 placeholder-zinc-500 outline-none"
           />
           {search && (
             <button onClick={() => setSearch('')} className="text-zinc-500 transition-colors hover:text-zinc-300">
@@ -71,8 +68,14 @@ export function MarketplacePanel() {
         <button
           onClick={refreshCatalog}
           disabled={catalogLoading}
-          title="Refresh catalog from GitHub"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-200 disabled:opacity-50"
+          title={catalogLoading ? 'Refreshing catalog…' : catalogFetched ? 'Catalog live — click to refresh' : 'Catalog offline — click to retry'}
+          className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:opacity-50 ${
+            catalogLoading
+              ? 'border-plume-500/40 text-plume-300'
+              : catalogFetched
+                ? 'border-emerald-500/30 text-emerald-300 hover:border-emerald-500/60'
+                : 'border-zinc-700 text-zinc-500 hover:border-white/20 hover:text-zinc-200'
+          }`}
         >
           <RefreshCw size={13} className={catalogLoading ? 'animate-spin' : ''} />
         </button>
@@ -119,10 +122,10 @@ function Column({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex w-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/40">
-      <div className="flex items-center gap-2 border-b border-white/8 px-4 py-2.5">
+    <div className="flex min-w-80 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/40">
+      <div className="flex items-center gap-2 border-b border-white/[0.08] px-4 py-2.5">
         <span className="text-zinc-500">{icon}</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{label}</span>
+        <span className="section-label text-[10px]">{label}</span>
         <span className="rounded-full bg-plume-500/20 px-2 py-[1px] text-[9px] font-bold text-plume-300">
           {count}
         </span>
@@ -407,26 +410,3 @@ function InstallButton({
   )
 }
 
-// ── Catalog Status Pill ───────────────────────────────────────────────────────
-
-function CatalogStatus({ fetched, loading }: { fetched: boolean; loading: boolean }) {
-  if (loading) {
-    return (
-      <span className="flex items-center gap-1 rounded-md border border-plume-500/30 bg-plume-500/10 px-1.5 py-[1px] text-[9px] font-semibold text-plume-400">
-        <RefreshCw size={8} className="animate-spin" /> REFRESHING
-      </span>
-    )
-  }
-  if (fetched) {
-    return (
-      <span className="flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-[1px] text-[9px] font-semibold text-emerald-400">
-        <Cloud size={8} /> LIVE
-      </span>
-    )
-  }
-  return (
-    <span className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-800/50 px-1.5 py-[1px] text-[9px] font-semibold text-zinc-500">
-      <CloudOff size={8} /> OFFLINE
-    </span>
-  )
-}

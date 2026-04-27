@@ -22,15 +22,19 @@ export function LibraryPanel() {
   if (isWide) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex items-center gap-3 border-b border-white/8 px-4 py-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Library</span>
-          <span className="ml-auto" />
+        <div className="section-header">
+          <BookOpen size={16} className="text-plume-400" />
+          <h2 className="text-base font-bold text-zinc-100">Library</h2>
+          <span className="hidden text-xs text-zinc-500 md:inline">
+            Browse agents, skills, and MCPs installed in <code className="rounded bg-zinc-900 px-1 text-[10px]">~/.claude/</code>
+          </span>
+          <div className="flex-1" />
           <button
             onClick={() => setRefreshSignal((n) => n + 1)}
             title="Refresh all three columns"
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-200"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-200"
           >
-            <RefreshCw size={12} />
+            <RefreshCw size={13} />
           </button>
         </div>
 
@@ -47,15 +51,28 @@ export function LibraryPanel() {
   // the user never loses access to anything when shrinking the window.
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-center gap-1 border-b border-white/8 px-4 py-2">
+      <div className="section-header">
+        <BookOpen size={16} className="text-plume-400" />
+        <h2 className="text-base font-bold text-zinc-100">Library</h2>
+        <div className="flex-1" />
+        <button
+          onClick={() => setRefreshSignal((n) => n + 1)}
+          title="Refresh"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-200"
+        >
+          <RefreshCw size={13} />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-1 border-b border-white/[0.08] px-4 py-2">
         <TabBtn active={tab === 'agents'} onClick={() => setTab('agents')} icon={<BookOpen size={13} />} label="Agents" />
         <TabBtn active={tab === 'skills'} onClick={() => setTab('skills')} icon={<Wand2 size={13} />} label="Skills" />
         <TabBtn active={tab === 'mcps'} onClick={() => setTab('mcps')} icon={<Server size={13} />} label="MCPs" />
       </div>
 
-      {tab === 'agents' && <AgentsTab />}
-      {tab === 'skills' && <SkillsTab />}
-      {tab === 'mcps' && <McpsTab />}
+      {tab === 'agents' && <AgentsTab refreshSignal={refreshSignal} />}
+      {tab === 'skills' && <SkillsTab refreshSignal={refreshSignal} />}
+      {tab === 'mcps' && <McpsTab refreshSignal={refreshSignal} />}
     </div>
   )
 }
@@ -74,7 +91,7 @@ function TabBtn({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+      className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors ${
         active
           ? 'bg-plume-500/15 text-plume-300'
           : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200'
