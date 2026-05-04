@@ -85,8 +85,8 @@ export function SkillsTab({
             <Wand2 size={16} className="text-plume-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-bold text-zinc-100">Skills</h2>
-            <p className="text-xs text-zinc-500">
+            <h2 className="text-base font-bold text-stone-100">Skills</h2>
+            <p className="text-xs text-stone-500">
               {totalEnabled} local enabled · {skills.plugin.length} from plugins · {totalAll} total
             </p>
           </div>
@@ -97,7 +97,7 @@ export function SkillsTab({
             onClick={refresh}
             disabled={loading}
             title="Refresh"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-200 disabled:opacity-50"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-stone-500 transition-colors hover:border-white/20 hover:text-stone-200 disabled:opacity-50"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -193,10 +193,10 @@ function SourceSection({
       >
         <ChevronDown
           size={12}
-          className="text-zinc-500 transition-transform"
+          className="text-stone-500 transition-transform"
           style={{ transform: open ? 'rotate(0)' : 'rotate(-90deg)' }}
         />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{title}</span>
+        <span className="text-micro font-bold uppercase tracking-wider text-stone-400">{title}</span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -245,11 +245,11 @@ function TopicGroup({
       >
         <ChevronDown
           size={11}
-          className="text-zinc-600 transition-transform"
+          className="text-stone-600 transition-transform"
           style={{ transform: open ? 'rotate(0)' : 'rotate(-90deg)' }}
         />
-        <span className="text-[11px] font-semibold text-zinc-300">{topic}</span>
-        <span className="text-[10px] text-zinc-600">({skills.length})</span>
+        <span className="text-micro font-semibold text-stone-300">{topic}</span>
+        <span className="text-micro text-stone-600">({skills.length})</span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -289,20 +289,20 @@ function SkillRow({
   const isPlugin = skill.origin.type === 'plugin'
   return (
     <div className="flex items-center gap-2 border-t border-white/5 px-4 py-2">
-      <Icon size={12} className={skill.enabled ? (isPlugin ? 'text-amber-400' : 'text-plume-400') : 'text-zinc-600'} />
+      <Icon size={12} className={skill.enabled ? (isPlugin ? 'text-amber-400' : 'text-plume-400') : 'text-stone-600'} />
       <div className="flex-1 min-w-0">
-        <div className={`truncate text-[11px] font-medium ${!skill.enabled ? 'text-zinc-500' : 'text-zinc-100'}`}>
+        <div className={`truncate text-micro font-medium ${!skill.enabled ? 'text-stone-500' : 'text-stone-100'}`}>
           {skill.name}
         </div>
         {skill.description && (
-          <div className="line-clamp-1 text-[10px] text-zinc-500">{skill.description}</div>
+          <div className="line-clamp-1 text-micro text-stone-500">{skill.description}</div>
         )}
         {skill.origin.type === 'plugin' && (
-          <div className="truncate text-[9px] font-mono text-amber-500/60">{skill.origin.plugin}</div>
+          <div className="truncate text-micro font-mono text-amber-500/60">{skill.origin.plugin}</div>
         )}
       </div>
       {isPlugin ? (
-        <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-[2px] text-[9px] font-semibold uppercase text-amber-300">
+        <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-[2px] text-micro font-semibold uppercase text-amber-300">
           plugin
         </span>
       ) : (
@@ -327,7 +327,7 @@ function SkillToggle({ enabled, busy, onClick }: { enabled: boolean; busy: boole
       ) : (
         <span
           className={`mx-[2px] flex h-4 w-4 items-center justify-center rounded-full transition-colors ${
-            enabled ? 'bg-plume-400 text-plume-900' : 'bg-zinc-600 text-zinc-900'
+            enabled ? 'bg-plume-400 text-plume-900' : 'bg-stone-600 text-stone-900'
           }`}
         >
           {enabled ? <Zap size={8} /> : <ZapOff size={8} />}
@@ -349,17 +349,17 @@ function SearchInput({
   width?: string
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/60 px-3 py-1.5 focus-within:border-plume-500/50">
-      <Search size={12} className="text-zinc-500" />
+    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-stone-900/60 px-3 py-1.5 focus-within:border-plume-500/50">
+      <Search size={12} className="text-stone-500" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search..."
-        className={`${width} bg-transparent text-xs text-zinc-200 placeholder-zinc-500 outline-none`}
+        className={`${width} bg-transparent text-xs text-stone-200 placeholder-stone-500 outline-none`}
       />
       {value && (
-        <button onClick={() => onChange('')} className="text-zinc-500 hover:text-zinc-300">×</button>
+        <button onClick={() => onChange('')} className="text-stone-500 hover:text-stone-300">×</button>
       )}
     </div>
   )
@@ -382,8 +382,8 @@ function ColumnHeader({
     <div className="flex flex-col gap-2 border-b border-white/8 px-3 py-3">
       <div className="flex items-center gap-2">
         {icon}
-        <span className="text-sm font-bold text-zinc-100">{title}</span>
-        <span className="text-[10px] text-zinc-500">{subtitle}</span>
+        <span className="text-sm font-bold text-stone-100">{title}</span>
+        <span className="text-micro text-stone-500">{subtitle}</span>
       </div>
       <SearchInput value={search} onChange={onSearch} />
     </div>
@@ -397,8 +397,8 @@ function EmptyState() {
         <Wand2 size={22} className="text-plume-400" />
       </div>
       <div>
-        <div className="text-sm font-semibold text-zinc-100">No skills yet</div>
-        <div className="mt-1 max-w-sm text-xs text-zinc-500">
+        <div className="text-sm font-semibold text-stone-100">No skills yet</div>
+        <div className="mt-1 max-w-sm text-xs text-stone-500">
           Drop SKILL.md files or directories into <span className="font-mono">~/.claude/skills/</span> and they'll appear here.
         </div>
       </div>

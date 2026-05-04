@@ -5,23 +5,23 @@
     Design notes:
       • Rounded square background — matches both macOS squircle and Windows 11
         tile conventions at all sizes.
-      • Primary: UO green (#006747). Accent: UO yellow (#FEE123).
+      • Primary: warm chocolate (#3a2820). Accent: soft amber (#d99750).
       • Foreground: a stylized plume / feather rendered as geometric barbs
         emerging from an angled rachis. Flat, bold, readable at 16px.
   -->
 
   <!-- Background: rounded square at ~22% corner radius -->
-  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="#006747"/>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="#3a2820"/>
 
   <!-- Subtle inner gradient for depth -->
   <defs>
     <linearGradient id="bgShade" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#00875c" stop-opacity="1"/>
-      <stop offset="100%" stop-color="#00563d" stop-opacity="1"/>
+      <stop offset="0%" stop-color="#5b3d2e" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#2a1d18" stop-opacity="1"/>
     </linearGradient>
     <linearGradient id="plumeShade" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
-      <stop offset="100%" stop-color="#FEE123" stop-opacity="1"/>
+      <stop offset="0%" stop-color="#efe4d4" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#d99750" stop-opacity="1"/>
     </linearGradient>
   </defs>
   <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bgShade)"/>
@@ -36,7 +36,7 @@
     <path d="M 360 780 L 380 780 L 660 260 L 640 240 Z" fill="url(#plumeShade)"/>
 
     <!-- Tip: small triangle capping the top of the rachis -->
-    <path d="M 640 240 L 660 260 L 675 225 Z" fill="#FEE123"/>
+    <path d="M 640 240 L 660 260 L 675 225 Z" fill="#d99750"/>
 
     <!-- Barbs: 6 leaf-shaped strokes on the LEFT side of the rachis, descending -->
     <g fill="url(#plumeShade)">
@@ -49,7 +49,7 @@
     </g>
 
     <!-- Barbs on the RIGHT side: shorter, for asymmetry -->
-    <g fill="#FEE123" opacity="0.85">
+    <g fill="#d99750" opacity="0.85">
       <path d="M 660 300 Q 740 330 770 400 Q 720 350 655 330 Z"/>
       <path d="M 620 390 Q 690 430 720 500 Q 680 450 615 420 Z"/>
       <path d="M 580 480 Q 640 520 660 590 Q 630 540 575 510 Z"/>

@@ -35,7 +35,7 @@ export function App() {
     })
   }, [setActiveTab])
 
-  // Still loading settings — render nothing to avoid flash
+  // Still loading settings ,  render nothing to avoid flash
   if (onboardingDone === null) return null
 
   if (!onboardingDone) {

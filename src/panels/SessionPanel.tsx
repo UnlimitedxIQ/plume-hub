@@ -1,109 +1,72 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
-  FileText, FolderOpen, RefreshCw, Clock, Eye, ChevronDown,
-  PenLine, Search, BookOpen, Target, Settings, Check, Circle,
-  FileSearch, ClipboardList, Sparkles, Trophy,
+  FileText, FolderOpen, RefreshCw, Clock, Eye, Send, Loader2, Check,
+  Settings, Sparkles, EyeOff,
 } from 'lucide-react'
 import { useStore, type ActiveSession } from '../lib/store'
 import {
   listProjectFiles,
   readProjectFile,
   openProjectDir,
+  appendProjectNote,
   type ProjectFile,
 } from '../lib/bridge'
+import { Hero, StatusPill } from '../components/ui'
+import { inferPhases, type Phase } from './session/phases'
 
 const POLL_INTERVAL = 3000
 
-// ── Categorization ────────────────────────────────────────────────────────────
-// Files are bucketed into categories based on their relative path. Meta files
-// (CLAUDE.md, .plume/config, launch script, .started flag) get collapsed by
-// default since the student doesn't need them.
+// ── Categorization ──────────────────────────────────────────────────────────
+// Files are bucketed into categories based on their relative path. "Internals"
+// files (CLAUDE.md, .plume/config, launch script, .started flag) get hidden
+// behind a single toggle so the student doesn't need to see them.
 
-type CategoryId = 'drafts' | 'research' | 'study' | 'analysis' | 'other' | 'meta'
+type CategoryId = 'drafts' | 'research' | 'study' | 'analysis' | 'other' | 'internals'
 
 interface CategoryDef {
   id: CategoryId
   label: string
-  Icon: React.ElementType
-  color: string
   matches: (relPath: string) => boolean
 }
 
 const CATEGORIES: CategoryDef[] = [
+  { id: 'drafts',    label: 'Drafts',    matches: (p) => p.startsWith('drafts/') || p.startsWith('drafts\\') },
+  { id: 'research',  label: 'Research',  matches: (p) => p.startsWith('research/') || p.startsWith('research\\') },
+  { id: 'study',     label: 'Study',     matches: (p) => p.startsWith('study/') || p.startsWith('study\\') },
   {
-    id: 'drafts',
-    label: 'Drafts',
-    Icon: PenLine,
-    color: 'text-amber-400',
-    matches: (p) => p.startsWith('drafts/') || p.startsWith('drafts\\'),
-  },
-  {
-    id: 'research',
-    label: 'Research',
-    Icon: Search,
-    color: 'text-blue-400',
-    matches: (p) => p.startsWith('research/') || p.startsWith('research\\'),
-  },
-  {
-    id: 'study',
-    label: 'Study Materials',
-    Icon: BookOpen,
-    color: 'text-purple-400',
-    matches: (p) => p.startsWith('study/') || p.startsWith('study\\'),
-  },
-  {
-    id: 'analysis',
-    label: 'Analysis',
-    Icon: Target,
-    color: 'text-emerald-400',
+    id: 'analysis',  label: 'Analysis',
     matches: (p) => {
       const isPlume = p.startsWith('.plume/') || p.startsWith('.plume\\')
       if (!isPlume) return false
-      // Only user-relevant .plume/ files — not the config/launcher/flag
       return (
         p.includes('rubric_analysis') ||
-        p.includes('canvas/assignment') ||
-        p.includes('canvas\\assignment') ||
-        p.includes('canvas/rubric') ||
-        p.includes('canvas\\rubric') ||
-        p.includes('research_brief') ||
-        p.includes('outline')
+        p.includes('canvas/assignment') || p.includes('canvas\\assignment') ||
+        p.includes('canvas/rubric') || p.includes('canvas\\rubric') ||
+        p.includes('research_brief') || p.includes('outline')
       )
     },
   },
   {
-    id: 'meta',
-    label: 'Meta',
-    Icon: Settings,
-    color: 'text-zinc-500',
+    id: 'internals', label: 'Internals',
     matches: (p) => {
-      // Everything inside .plume/ that we didn't claim for Analysis,
-      // plus CLAUDE.md itself.
       if (p === 'CLAUDE.md') return true
+      if (p === '_notes.md') return false // student-authored, surface in Other
       if (p.startsWith('.plume/') || p.startsWith('.plume\\')) return true
       return false
     },
   },
-  {
-    id: 'other',
-    label: 'Other',
-    Icon: FileText,
-    color: 'text-zinc-400',
-    matches: () => true, // catch-all
-  },
+  { id: 'other',     label: 'Other',     matches: () => true },
 ]
 
 function categorize(files: ProjectFile[]): Record<CategoryId, ProjectFile[]> {
   const buckets: Record<CategoryId, ProjectFile[]> = {
-    drafts: [], research: [], study: [], analysis: [], other: [], meta: [],
+    drafts: [], research: [], study: [], analysis: [], other: [], internals: [],
   }
   for (const f of files) {
-    // Normalize path separators once for stable matching
     const path = f.path.replace(/\\/g, '/')
-    // First match wins — 'other' is last so it catches anything unclaimed
     for (const cat of CATEGORIES) {
       if (cat.matches(path)) {
         buckets[cat.id].push(f)
@@ -114,70 +77,17 @@ function categorize(files: ProjectFile[]): Record<CategoryId, ProjectFile[]> {
   return buckets
 }
 
-// ── Progress phases ───────────────────────────────────────────────────────────
-// Each phase maps to a predicate over the file list. A phase is "done" if any
-// file in the project matches. Phases stay sequential — this is a rough
-// workflow order, not a strict state machine.
-
-interface PhaseDef {
-  id: string
-  label: string
-  Icon: React.ElementType
-  matches: (files: ProjectFile[]) => boolean
+function pickAutoFile(files: ProjectFile[]): ProjectFile | null {
+  const buckets = categorize(files)
+  const order: CategoryId[] = ['drafts', 'study', 'research', 'analysis', 'other']
+  for (const cat of order) {
+    if (buckets[cat].length > 0) return buckets[cat][0]
+  }
+  if (buckets.internals.length > 0) return buckets.internals[0]
+  return null
 }
 
-const PHASES: PhaseDef[] = [
-  {
-    id: 'read',
-    label: 'Read assignment',
-    Icon: FileSearch,
-    matches: (fs) =>
-      fs.some((f) => {
-        const p = f.path.replace(/\\/g, '/')
-        return p.includes('canvas/assignment') || p.includes('canvas/rubric')
-      }),
-  },
-  {
-    id: 'rubric',
-    label: 'Rubric analyzed',
-    Icon: ClipboardList,
-    matches: (fs) => fs.some((f) => f.path.replace(/\\/g, '/').includes('rubric_analysis')),
-  },
-  {
-    id: 'research',
-    label: 'Research',
-    Icon: Search,
-    matches: (fs) => fs.some((f) => f.path.replace(/\\/g, '/').startsWith('research/')),
-  },
-  {
-    id: 'draft',
-    label: 'First draft',
-    Icon: PenLine,
-    matches: (fs) =>
-      fs.some((f) => {
-        const p = f.path.replace(/\\/g, '/')
-        return p.includes('draft_v1') || p.startsWith('study/')
-      }),
-  },
-  {
-    id: 'critique',
-    label: 'Critique',
-    Icon: Sparkles,
-    matches: (fs) => fs.some((f) => f.path.replace(/\\/g, '/').includes('critique')),
-  },
-  {
-    id: 'final',
-    label: 'Final draft',
-    Icon: Trophy,
-    matches: (fs) =>
-      fs.some((f) => {
-        const p = f.path.replace(/\\/g, '/')
-        return p.includes('draft_v2') || p.includes('final')
-      }),
-  },
-]
-
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Component ───────────────────────────────────────────────────────────────
 
 export function SessionPanel() {
   const session = useStore((s) => s.activeSession)
@@ -185,17 +95,17 @@ export function SessionPanel() {
   if (!session) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="section-header">
-          <Eye size={16} className="text-plume-400" />
-          <h2 className="text-base font-bold text-zinc-100">Live Preview</h2>
-        </div>
-        <div className="flex flex-1 items-center justify-center p-6">
+        <Hero>
+          <h1 className="text-display text-white">Live</h1>
+          <p className="text-sm text-white/80">When Claude is working, this is where it shows up.</p>
+        </Hero>
+        <div className="flex flex-1 items-center justify-center p-10">
           <div className="card flex max-w-md items-center gap-3">
-            <Eye size={20} className="flex-shrink-0 text-zinc-500" />
+            <Eye size={20} className="flex-shrink-0 text-stone-500" />
             <div>
-              <p className="text-sm font-semibold text-zinc-200">No active session</p>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                Pick a mode (Think / Draft / Build / Study) on any Canvas assignment to start.
+              <p className="text-sm font-semibold text-stone-200">No session yet</p>
+              <p className="mt-0.5 text-xs text-stone-500">
+                Pick a mode on a Canvas assignment to start. Build is the canonical move.
               </p>
             </div>
           </div>
@@ -207,29 +117,13 @@ export function SessionPanel() {
   return <ActiveSessionView session={session} />
 }
 
-// Returns the file that should be auto-selected. Prefers recent user-facing
-// artifacts (drafts > study > research > analysis > other) over meta files.
-function pickAutoFile(files: ProjectFile[]): ProjectFile | null {
-  const buckets = categorize(files)
-  const order: CategoryId[] = ['drafts', 'study', 'research', 'analysis', 'other']
-  for (const cat of order) {
-    if (buckets[cat].length > 0) {
-      // Sorted desc by mtime by the upstream listProjectFiles
-      return buckets[cat][0]
-    }
-  }
-  // Fall through to meta if that's all that exists
-  if (buckets.meta.length > 0) return buckets.meta[0]
-  return null
-}
-
 function ActiveSessionView({ session }: { session: ActiveSession }) {
   const [files, setFiles] = useState<ProjectFile[]>([])
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [content, setContent] = useState<string>('')
   const [loading, setLoading] = useState(true)
-  const [metaOpen, setMetaOpen] = useState(false)
-  const userSelectedRef = useRef(false) // once user clicks a file, stop auto-switching
+  const [showInternals, setShowInternals] = useState(false)
+  const userSelectedRef = useRef(false)
   const lastAutoPath = useRef<string | null>(null)
 
   async function refresh() {
@@ -244,15 +138,11 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
         f.name.endsWith('.js') ||
         f.name.endsWith('.ts') ||
         f.name.endsWith('.json') ||
-        f.name.endsWith('.csv')
+        f.name.endsWith('.csv'),
     )
 
     setFiles(interesting)
 
-    // Auto-select: only if the user hasn't explicitly picked a file yet,
-    // AND the newest user-facing file has changed since last poll. This
-    // lets the view "follow" Claude's latest output without overriding the
-    // student's manual navigation.
     if (!userSelectedRef.current && interesting.length > 0) {
       const target = pickAutoFile(interesting)
       if (target && target.path !== lastAutoPath.current) {
@@ -269,7 +159,6 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
     if (result.ok && result.content !== null) setContent(result.content)
   }
 
-  // Poll for file changes
   useEffect(() => {
     refresh()
     const timer = setInterval(refresh, POLL_INTERVAL)
@@ -277,14 +166,12 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.projectDir])
 
-  // Reset selection bookkeeping when the session changes
   useEffect(() => {
     userSelectedRef.current = false
     lastAutoPath.current = null
     setSelectedPath(null)
   }, [session.projectDir])
 
-  // Load the selected file's content + re-poll it while selected
   useEffect(() => {
     if (!selectedPath) {
       setContent('')
@@ -301,61 +188,50 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
     setSelectedPath(path)
   }
 
-  const modeColors: Record<string, string> = {
-    Think: 'text-blue-400',
-    Draft: 'text-amber-400',
-    Build: 'text-emerald-400',
-    Study: 'text-purple-400',
-    Resume: 'text-zinc-400',
-  }
-
   const buckets = useMemo(() => categorize(files), [files])
-  const phaseStates = useMemo(
-    () => PHASES.map((p) => ({ ...p, done: p.matches(files) })),
-    [files]
-  )
-
-  // Only show the meta toggle if there are meta files worth showing
-  const hasMeta = buckets.meta.length > 0
+  const phases = useMemo(() => inferPhases(files), [files])
+  const hasInternals = buckets.internals.length > 0
+  const startedLabel = useMemo(() => {
+    const elapsed = Math.max(0, Math.floor((Date.now() - session.startedAt) / 1000))
+    if (elapsed < 60) return `${elapsed}s ago`
+    if (elapsed < 3600) return `${Math.floor(elapsed / 60)}m ago`
+    return `${Math.floor(elapsed / 3600)}h ago`
+  }, [session.startedAt, files])
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Header */}
-      <div className="section-header">
-        <Eye size={16} className="text-plume-400" />
-        <div className="flex-1 min-w-0">
-          <h2 className="truncate text-base font-bold text-zinc-100">{session.assignmentName}</h2>
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <span className={`font-semibold ${modeColors[session.mode] ?? 'text-zinc-400'}`}>
-              {session.mode}
-            </span>
-            <span>·</span>
-            <Clock size={10} />
-            <span>Started {new Date(session.startedAt).toLocaleTimeString()}</span>
+      <Hero>
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-display truncate text-white">{session.assignmentName}</h1>
+            <div className="mt-2 flex items-center gap-2 text-xs text-white/80">
+              <ModeTag mode={session.mode} />
+              <span className="text-white/40">·</span>
+              <Clock size={11} className="text-white/60" />
+              <span>Started {startedLabel}</span>
+            </div>
           </div>
+          <button
+            onClick={() => openProjectDir(session.projectDir)}
+            aria-label="Open project folder"
+            className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/15 px-3 py-1.5 text-xs font-semibold text-white transition-colors duration-quick ease-quiet hover:bg-black/30"
+          >
+            <FolderOpen size={12} /> Open folder
+          </button>
+          <button
+            onClick={refresh}
+            aria-label="Refresh"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 text-white/80 transition-colors duration-quick ease-quiet hover:bg-white/10 hover:text-white"
+          >
+            <RefreshCw size={13} />
+          </button>
         </div>
-        <button
-          onClick={() => openProjectDir(session.projectDir)}
-          title="Open project folder"
-          className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/20 hover:text-zinc-200"
-        >
-          <FolderOpen size={12} /> Open folder
-        </button>
-        <button
-          onClick={refresh}
-          title="Refresh files"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-200"
-        >
-          <RefreshCw size={13} />
-        </button>
-      </div>
 
-      {/* Progress timeline — 2 rows × 3 phases */}
-      <div className="grid grid-cols-3 gap-1.5 border-b border-white/[0.08] bg-zinc-900/30 px-6 py-3">
-        {phaseStates.map((phase) => (
-          <PhasePill key={phase.id} phase={phase} />
-        ))}
-      </div>
+        {/* Adaptive phase strip */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {phases.map((p) => <PhasePill key={p.id} phase={p} />)}
+        </div>
+      </Hero>
 
       {loading ? (
         <div className="flex flex-1 items-center justify-center">
@@ -363,20 +239,28 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
-          {/* File tree sidebar — grouped by category */}
-          <div className="flex w-60 flex-col border-r border-white/8 bg-zinc-900/30">
-            <div className="flex items-center gap-1.5 border-b border-white/8 px-3 py-2">
-              <FileText size={11} className="text-zinc-500" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                Files ({files.length})
-              </span>
-            </div>
+          <aside className="flex w-64 flex-col border-r border-subtle surface-1">
+            <header className="flex items-center gap-1.5 border-b border-subtle px-3 py-2">
+              <FileText size={11} className="text-stone-500" />
+              <span className="section-label">Files</span>
+              <span className="text-micro text-stone-500">{files.length}</span>
+              <div className="flex-1" />
+              <button
+                onClick={() => setShowInternals((v) => !v)}
+                aria-pressed={showInternals}
+                title={showInternals ? 'Hide internals' : 'Show internals'}
+                className="flex items-center gap-1 text-micro font-semibold text-stone-500 transition-colors duration-quick ease-quiet hover:text-stone-300"
+              >
+                {showInternals ? <EyeOff size={11} /> : <Eye size={11} />}
+                Internals
+              </button>
+            </header>
+
             <div className="flex-1 overflow-y-auto">
               {files.length === 0 ? (
                 <EmptyFileList />
               ) : (
                 <>
-                  {/* Visible categories (everything except meta) */}
                   {(['drafts', 'research', 'study', 'analysis', 'other'] as CategoryId[]).map((catId) => {
                     const cat = CATEGORIES.find((c) => c.id === catId)!
                     const bucket = buckets[catId]
@@ -385,66 +269,33 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
                       <FileGroup
                         key={catId}
                         label={cat.label}
-                        Icon={cat.Icon}
-                        color={cat.color}
                         files={bucket}
                         selectedPath={selectedPath}
                         onPick={handlePickFile}
                       />
                     )
                   })}
-
-                  {/* Meta (collapsible) */}
-                  {hasMeta && (
-                    <div>
-                      <button
-                        onClick={() => setMetaOpen((o) => !o)}
-                        className="flex w-full items-center gap-1.5 border-t border-white/5 bg-zinc-900/50 px-3 py-1.5 text-left transition-colors hover:bg-white/5"
-                      >
-                        <ChevronDown
-                          size={10}
-                          className="text-zinc-500 transition-transform"
-                          style={{ transform: metaOpen ? 'rotate(0)' : 'rotate(-90deg)' }}
-                        />
-                        <Settings size={10} className="text-zinc-600" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                          Meta ({buckets.meta.length})
-                        </span>
-                      </button>
-                      <AnimatePresence initial={false}>
-                        {metaOpen && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.15 }}
-                            className="overflow-hidden"
-                          >
-                            {buckets.meta.map((f) => (
-                              <FileRow
-                                key={f.path}
-                                file={f}
-                                selected={f.path === selectedPath}
-                                onPick={handlePickFile}
-                                dim
-                              />
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
+                  {hasInternals && showInternals && (
+                    <FileGroup
+                      label="Internals"
+                      files={buckets.internals}
+                      selectedPath={selectedPath}
+                      onPick={handlePickFile}
+                      dim
+                    />
                   )}
                 </>
               )}
             </div>
-          </div>
+          </aside>
 
-          {/* Markdown preview */}
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <main className="flex flex-1 flex-col overflow-hidden">
             {selectedPath ? (
               <>
-                <div className="flex items-center gap-2 border-b border-white/8 bg-zinc-900/20 px-4 py-2">
-                  <span className="truncate font-mono text-[11px] text-zinc-400">{selectedPath}</span>
+                <div className="flex items-center gap-2 border-b border-subtle surface-1 px-4 py-2">
+                  <span className="truncate font-mono text-micro text-stone-400">{selectedPath}</span>
+                  <div className="flex-1" />
+                  <FreshnessPill mtime={files.find((f) => f.path === selectedPath)?.mtime} />
                 </div>
                 <div className="flex-1 overflow-y-auto px-6 py-6">
                   <div className="prose prose-invert prose-sm mx-auto max-w-3xl">
@@ -457,59 +308,59 @@ function ActiveSessionView({ session }: { session: ActiveSession }) {
             ) : (
               <WaitingForClaude />
             )}
-          </div>
+            <NoteForClaude projectDir={session.projectDir} />
+          </main>
         </div>
       )}
     </div>
   )
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
-function PhasePill({ phase }: { phase: PhaseDef & { done: boolean } }) {
-  const Icon = phase.Icon
+function ModeTag({ mode }: { mode: string }) {
+  const tone =
+    mode === 'Build'  ? 'pill-yellow' :
+    mode === 'Think'  ? 'pill-plume' :
+    mode === 'Draft'  ? 'pill-warn' :
+    mode === 'Study'  ? 'pill-plume' :
+    'pill-zinc'
+  return <span className={`pill ${tone}`}>{mode}</span>
+}
+
+function PhasePill({ phase }: { phase: Phase }) {
+  const baseClass =
+    phase.done && phase.active
+      ? 'border-plumeyellow-400/40 bg-plumeyellow-500/10 text-plumeyellow-300'
+      : phase.done
+        ? 'border-plume-500/40 bg-plume-500/10 text-plume-300'
+        : 'border-white/10 bg-white/[0.02] text-stone-500'
   return (
-    <div
-      className={`flex flex-shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-medium transition-colors ${
-        phase.done
-          ? 'border-plume-500/40 bg-plume-500/10 text-plume-300'
-          : 'border-white/10 bg-white/[0.02] text-zinc-500'
-      }`}
-    >
-      {phase.done ? (
-        <Check size={10} className="text-plume-400" />
-      ) : (
-        <Circle size={9} className="text-zinc-600" />
-      )}
-      <Icon size={10} />
-      <span>{phase.label}</span>
-    </div>
+    <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-[2px] text-micro font-semibold transition-colors duration-quick ease-quiet ${baseClass}`}>
+      {phase.done ? <Check size={9} /> : <span className="h-1.5 w-1.5 rounded-full bg-stone-600" />}
+      {phase.label}
+    </span>
   )
 }
 
 function FileGroup({
   label,
-  Icon,
-  color,
   files,
   selectedPath,
   onPick,
+  dim = false,
 }: {
   label: string
-  Icon: React.ElementType
-  color: string
   files: ProjectFile[]
   selectedPath: string | null
   onPick: (path: string) => void
+  dim?: boolean
 }) {
   return (
-    <div>
-      <div className="flex items-center gap-1.5 border-l-2 border-plume-500/30 bg-zinc-900/50 px-2.5 py-1.5">
-        <Icon size={11} className={color} />
-        <span className={`section-label text-[10px] ${color}`}>{label}</span>
-        <span className="ml-auto rounded-full bg-zinc-900 px-1.5 py-[1px] text-[9px] font-semibold text-zinc-500">
-          {files.length}
-        </span>
+    <section>
+      <div className="surface-2 px-3 py-1.5">
+        <span className="section-label">{label}</span>
+        <span className="ml-2 text-micro text-stone-500">{files.length}</span>
       </div>
       {files.map((f) => (
         <FileRow
@@ -517,9 +368,10 @@ function FileGroup({
           file={f}
           selected={f.path === selectedPath}
           onPick={onPick}
+          dim={dim}
         />
       ))}
-    </div>
+    </section>
   )
 }
 
@@ -539,35 +391,47 @@ function FileRow({
     ageSec < 60 ? `${ageSec}s` :
     ageSec < 3600 ? `${Math.floor(ageSec / 60)}m` :
     `${Math.floor(ageSec / 3600)}h`
-
   return (
     <motion.button
       initial={{ opacity: 0, x: -4 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.12 }}
       onClick={() => onPick(file.path)}
-      className={`flex w-full items-center gap-2 border-b border-white/5 px-3 py-1.5 text-left transition-colors ${
+      className={`flex w-full items-center gap-2 border-b border-faint px-3 py-1.5 text-left transition-colors duration-quick ease-quiet ${
         selected
-          ? 'bg-plume-500/10 text-plume-300'
+          ? 'bg-plume-700/30 text-white'
           : dim
-            ? 'text-zinc-500 hover:bg-white/5'
-            : 'text-zinc-300 hover:bg-white/5 hover:text-zinc-100'
+            ? 'text-stone-500 hover:bg-white/5'
+            : 'text-stone-300 hover:bg-white/5 hover:text-stone-100'
       }`}
     >
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[11px] font-medium">{file.name}</div>
-        <div className="truncate text-[9px] text-zinc-600">{file.path}</div>
+        <div className="truncate text-xs font-medium">{file.name}</div>
+        <div className="truncate text-micro text-stone-600">{file.path}</div>
       </div>
-      <span className="inline-flex flex-shrink-0 items-center rounded-md border border-white/5 bg-zinc-900/60 px-1.5 py-0.5 font-mono text-[9px] text-zinc-500">
+      <span className="inline-flex flex-shrink-0 items-center rounded-md border border-faint surface-2 px-1.5 py-0.5 font-mono text-micro text-stone-500">
         {ageLabel}
       </span>
     </motion.button>
   )
 }
 
+function FreshnessPill({ mtime }: { mtime: number | undefined }) {
+  if (!mtime) return null
+  const ageSec = Math.max(0, Math.floor((Date.now() - mtime) / 1000))
+  if (ageSec < 8) {
+    return <StatusPill tone="success">updated just now</StatusPill>
+  }
+  const label =
+    ageSec < 60 ? `${ageSec}s ago` :
+    ageSec < 3600 ? `${Math.floor(ageSec / 60)}m ago` :
+    `${Math.floor(ageSec / 3600)}h ago`
+  return <span className="text-micro text-stone-500">updated {label}</span>
+}
+
 function EmptyFileList() {
   return (
-    <div className="px-3 py-6 text-center text-xs text-zinc-600">
+    <div className="px-3 py-6 text-center text-xs text-stone-500">
       Waiting for Claude to create files...
     </div>
   )
@@ -575,18 +439,78 @@ function EmptyFileList() {
 
 function WaitingForClaude() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
       <motion.div
         animate={{ rotate: 360 }}
-        transition={{ repeat: Infinity, duration: 3, ease: 'linear' }}
-        className="flex h-10 w-10 items-center justify-center rounded-2xl bg-plume-500/10"
+        transition={{ repeat: Infinity, duration: 4, ease: 'linear' }}
+        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-plume-700/30"
       >
-        <Sparkles size={18} className="text-plume-400" />
+        <Sparkles size={20} className="text-plumeyellow-400" />
       </motion.div>
-      <p className="text-sm font-medium text-zinc-300">Claude is thinking</p>
-      <p className="max-w-sm text-xs text-zinc-500">
-        First drafts usually appear in 30–60 seconds. This view updates automatically.
+      <p className="text-sm font-semibold text-stone-200">Claude is thinking</p>
+      <p className="max-w-sm text-xs text-stone-500">
+        First drafts usually appear in 30 to 60 seconds. This view updates automatically.
       </p>
+    </div>
+  )
+}
+
+function NoteForClaude({ projectDir }: { projectDir: string }) {
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  async function handleSend() {
+    if (!note.trim() || busy) return
+    setBusy(true)
+    const res = await appendProjectNote({ projectDir, note: note.trim() })
+    setBusy(false)
+    if (res.ok) {
+      setResult({ ok: true, msg: 'Saved to _notes.md' })
+      setNote('')
+      setTimeout(() => setResult(null), 3000)
+    } else {
+      setResult({ ok: false, msg: res.error ?? 'Save failed' })
+    }
+  }
+
+  return (
+    <div className="flex-shrink-0 border-t border-subtle surface-1 px-4 py-2.5">
+      <div className="flex items-center gap-2 pb-1.5">
+        <Settings size={11} className="text-stone-500" />
+        <span className="section-label">Note for Claude</span>
+        <span className="text-micro text-stone-500">
+          appends to <code className="text-stone-400">_notes.md</code>, picked up on Resume
+        </span>
+        {result && (
+          <span className={`ml-auto text-micro font-semibold ${result.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {result.msg}
+          </span>
+        )}
+      </div>
+      <div className="flex items-end gap-2">
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Make this paragraph more concise..."
+          rows={2}
+          className="flex-1 resize-none rounded-md border border-subtle bg-ink-800 px-3 py-2 text-xs leading-relaxed text-stone-200 placeholder-stone-500 outline-none focus:border-plume-500/60"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault()
+              handleSend()
+            }
+          }}
+        />
+        <button
+          onClick={handleSend}
+          disabled={!note.trim() || busy}
+          className="btn-primary-inline flex-shrink-0 disabled:opacity-40"
+        >
+          {busy ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+          Save
+        </button>
+      </div>
     </div>
   )
 }

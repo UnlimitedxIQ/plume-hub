@@ -8,13 +8,40 @@
   padding: 0;
 }
 
+:root {
+  /* Borders, single source of truth. Three steps so panels can pick contrast.
+     Cream-tinted alpha so the lines feel warm against a chocolate base. */
+  --border-faint:  rgb(239 228 212 / 0.06);
+  --border-subtle: rgb(239 228 212 / 0.10);
+  --border-strong: rgb(239 228 212 / 0.18);
+
+  /* Surfaces, translucent layers over the Windows acrylic backdrop. All
+     tinted toward chocolate so the warm-dim scene reads as one coherent
+     light source. */
+  --surface-rail: rgb(13 10 7 / 0.85);      /* left-rail, deepest */
+  --surface-1:    rgb(20 16 12 / 0.55);     /* primary panel surface */
+  --surface-2:    rgb(29 24 20 / 0.66);     /* card surface */
+  --surface-3:    rgb(38 32 26 / 0.78);     /* hover/active card */
+
+  /* Status, one source of truth for success/warn/danger. */
+  --status-success: theme('colors.emerald.400');
+  --status-warn:    theme('colors.amber.400');
+  --status-danger:  theme('colors.rose.400');
+
+  /* Motion. The whole app moves on this curve at these three durations. */
+  --motion-quiet: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-quick: 120ms;
+  --dur-mid:   180ms;
+  --dur-slow:  220ms;
+}
+
 html,
 body,
 #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #09090b;
+  background: theme('colors.ink.950');
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   color-scheme: dark;
@@ -27,75 +54,310 @@ body,
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
 @layer components {
+  /* ── Inputs ─────────────────────────────────────────────────────────── */
   .input-field {
-    @apply w-full rounded-lg border border-white/10 bg-zinc-800 px-3 py-2 text-xs text-zinc-200
-           outline-none placeholder:text-zinc-600
+    @apply w-full rounded-lg border bg-ink-700 px-3 py-2 text-xs text-stone-200
+           outline-none placeholder:text-stone-500
            focus:border-plume-500/60 focus:ring-1 focus:ring-plume-500/30;
+    border-color: var(--border-subtle);
+  }
+
+  /* ── Buttons ────────────────────────────────────────────────────────── */
+  .btn-primary {
+    @apply flex w-full items-center justify-center gap-2 rounded-xl bg-plume-500 py-2
+           text-sm font-medium text-white transition-colors hover:bg-plume-600
+           disabled:opacity-60
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-plume-300/40;
+  }
+
+  /* Inline header CTA — same green, sized to fit beside section headers. */
+  .btn-primary-inline {
+    @apply inline-flex items-center gap-2 rounded-lg bg-plume-500 px-3 py-1.5
+           text-xs font-semibold text-white transition-colors hover:bg-plume-600
+           disabled:opacity-60
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-plume-300/40;
   }
 
   .btn-secondary {
-    @apply rounded-lg border border-white/10 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300
-           transition-colors hover:bg-zinc-700 disabled:opacity-50;
-  }
-
-  .btn-primary {
-    @apply flex w-full items-center justify-center gap-2 rounded-xl bg-plume-500 py-2
-           text-sm font-medium text-white transition-colors hover:bg-plume-600 disabled:opacity-60;
+    @apply rounded-lg border bg-ink-700 px-3 py-1.5 text-xs text-stone-300
+           transition-colors hover:bg-ink-600 disabled:opacity-50
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-plume-300/30;
+    border-color: var(--border-subtle);
   }
 
   .btn-ghost {
-    @apply rounded-lg border border-transparent bg-transparent px-3 py-1.5 text-xs text-zinc-400
-           transition-colors hover:bg-white/5 hover:text-zinc-200 disabled:opacity-50;
+    @apply rounded-lg border border-transparent bg-transparent px-3 py-1.5 text-xs text-stone-400
+           transition-colors hover:bg-white/5 hover:text-stone-200 disabled:opacity-50
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-plume-300/30;
+  }
+
+  /* The yellow CTA for distinct moments (Send, Build mode). Used sparingly. */
+  .btn-yellow {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-plumeyellow-500
+           text-ink-900 font-semibold transition-colors hover:bg-plumeyellow-400
+           disabled:opacity-60
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-plumeyellow-400/50;
   }
 
   /* ── Surfaces ───────────────────────────────────────────────────────── */
   .card {
-    @apply rounded-xl border border-white/[0.08] bg-zinc-900/30 p-3;
+    @apply rounded-xl border p-3;
+    background: var(--surface-2);
+    border-color: var(--border-subtle);
+  }
+
+  .card-flat {
+    /* Used inside other cards so we don't violate "no nested cards". Gives
+       a translucent block without re-bordering. */
+    @apply rounded-lg p-3;
+    background: var(--surface-1);
   }
 
   .card-interactive {
-    @apply rounded-xl border border-white/[0.08] bg-zinc-900/30 p-3
-           transition-colors hover:border-white/[0.15] hover:bg-zinc-900/50;
+    @apply rounded-xl border p-3 transition-colors;
+    background: var(--surface-2);
+    border-color: var(--border-subtle);
+  }
+  .card-interactive:hover {
+    background: var(--surface-3);
+    border-color: var(--border-strong);
   }
 
   .section-card {
-    @apply rounded-xl border border-white/[0.08] bg-zinc-900/30 p-4;
+    @apply rounded-xl border p-4;
+    background: var(--surface-2);
+    border-color: var(--border-subtle);
   }
 
-  /* Standardized 48px panel header */
+  /* Standardized 48px panel header. All five panels honor this. */
   .section-header {
-    @apply flex items-center gap-3 border-b border-white/[0.08] px-6 py-3;
+    @apply flex items-center gap-3 border-b px-6 py-3;
+    border-color: var(--border-subtle);
+    min-height: 48px;
   }
+
+  /* Hero band: the committed-brand surface used at the top of Canvas, the
+     Onboarding teaser, and the Session header. Warm chocolate so the brand
+     is on screen anywhere the user looks. Tight padding so it doesn't eat
+     too much vertical space; the panel below is the protagonist. */
+  .hero-band {
+    @apply flex flex-col gap-2 border-b px-6 py-3;
+    background:
+      linear-gradient(180deg,
+        rgb(58 40 32 / 0.85) 0%,
+        rgb(42 29 24 / 0.65) 100%);
+    border-color: var(--border-subtle);
+  }
+
+  /* Display type, used for Canvas hero headline and Session assignment name. */
+  .text-display {
+    font-size: clamp(20px, 2vw, 26px);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.018em;
+  }
+
+  /* Time-bucket label that sits sticky at the top of each TimelineGroup. */
+  .timeline-group-label {
+    @apply sticky top-0 z-10 flex items-baseline gap-2 px-3 py-2;
+    background: linear-gradient(180deg, var(--surface-1) 60%, transparent 100%);
+    backdrop-filter: blur(6px);
+  }
+  .timeline-group-label > .label {
+    @apply text-micro font-bold uppercase tracking-wide text-stone-300;
+  }
+  .timeline-group-label > .count {
+    @apply text-micro text-stone-500;
+  }
+
+  /* Time chip used in the Canvas filter row. */
+  .time-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold;
+    border-color: var(--border-subtle);
+    background: var(--surface-2);
+    color: theme('colors.zinc.300');
+    transition:
+      background var(--dur-quick) var(--motion-quiet),
+      color var(--dur-quick) var(--motion-quiet),
+      border-color var(--dur-quick) var(--motion-quiet);
+  }
+  .time-chip:hover {
+    background: var(--surface-3);
+    color: white;
+  }
+  .time-chip.is-active {
+    background: rgb(58 40 32 / 0.85);
+    border-color: rgb(217 151 80 / 0.55);
+    color: theme('colors.cream.DEFAULT');
+  }
+  .time-chip-count {
+    @apply rounded-full bg-white/10 px-1.5 text-micro font-semibold;
+  }
+
+  /* Day strip: 14-day calendar at top of Canvas. Each column is a day with
+     urgency-colored bars stacked vertically, day number + weekday under. */
+  .day-strip {
+    @apply flex items-stretch gap-0.5 border-b px-3 py-2 surface-1;
+    border-color: var(--border-subtle);
+    overflow-x: auto;
+  }
+  .day-cell {
+    @apply flex flex-1 min-w-[44px] flex-col items-stretch gap-1 rounded-md px-1 py-1.5 text-left
+           transition-colors duration-quick ease-quiet outline-none focus-visible:ring-1 focus-visible:ring-plumeyellow-400/40;
+  }
+  .day-cell:hover { background: var(--surface-2); }
+  .day-cell.is-selected {
+    background: rgb(58 40 32 / 0.85);
+    box-shadow: inset 0 0 0 1px rgb(217 151 80 / 0.55);
+  }
+  .day-cell.is-faded { opacity: 0.45; }
+
+  .day-bars {
+    @apply flex flex-col items-stretch gap-[2px];
+    min-height: 20px;
+    justify-content: flex-end;
+  }
+  .day-bars .bar {
+    @apply h-1 rounded-full;
+  }
+  .day-bars .bar-empty {
+    @apply h-px bg-white/10;
+  }
+  .day-bars .bar-overdue { background: theme('colors.rose.500'); }
+  .day-bars .bar-tonight { background: theme('colors.rose.400'); }
+  .day-bars .bar-soon    { background: theme('colors.amber.400'); }
+  .day-bars .bar-later   { background: theme('colors.emerald.400'); }
+  .day-bars .bar-noDate  { background: theme('colors.cream.dim'); }
+  .day-overflow {
+    @apply text-[9px] font-bold leading-none text-cream-muted text-right pr-1;
+    margin-top: 1px;
+  }
+
+  .day-foot {
+    @apply flex flex-col items-center justify-center;
+  }
+  .day-num {
+    @apply text-xs font-bold leading-none text-cream;
+  }
+  .day-num.is-today {
+    @apply text-plumeyellow-400;
+  }
+  .day-abbr {
+    @apply mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-cream-muted;
+  }
+  .day-strip-empty {
+    @apply absolute inset-0 flex items-center justify-center text-xs italic text-cream-muted;
+    pointer-events: none;
+  }
+
+  /* Brand mark hook. The asset itself is now chocolate + amber (icon.svg
+     was rebranded and regenerated), so this class is currently a no-op
+     anchor for any future visual treatment. */
+  .brand-mark {
+    /* intentionally empty */
+  }
+
+  /* Course filter pill (text-only secondary filter). */
+  .course-pill {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-micro font-semibold;
+    color: theme('colors.plume.300');
+    transition: color var(--dur-quick) var(--motion-quiet),
+                background var(--dur-quick) var(--motion-quiet);
+  }
+  .course-pill:hover { color: white; background: var(--surface-2); }
+  .course-pill.is-active { color: theme('colors.plumeyellow.400'); background: var(--surface-3); }
 
   /* Section / column label */
   .section-label {
-    @apply text-xs font-semibold uppercase tracking-wider text-zinc-300;
+    @apply text-micro font-semibold uppercase text-stone-400;
   }
 
   /* Stronger form label */
   .label-field {
-    @apply text-xs font-semibold text-zinc-300;
+    @apply text-xs font-semibold text-stone-300;
   }
 
   /* Capped scroll region for long lists inside settings */
   .scroll-region {
-    @apply max-h-96 overflow-y-auto rounded-xl border border-white/[0.08];
+    @apply max-h-96 overflow-y-auto rounded-xl border;
+    border-color: var(--border-subtle);
   }
 
-  /* Segmented progress bar — used by OnboardingOverlay */
+  /* ── Mode buttons (the product's anchor moment) ─────────────────────── */
+  /* Build is the canonical action — yellow, bold, larger. The other three
+     are equally weighted secondary alternates. */
+  .mode-btn {
+    @apply inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg
+           px-2 py-1.5 text-xs font-semibold transition-colors
+           focus-visible:outline-none focus-visible:ring-2;
+    min-height: 36px;
+  }
+  .mode-btn-build {
+    @apply bg-plumeyellow-500 text-ink-900 hover:bg-plumeyellow-400
+           focus-visible:ring-plumeyellow-400/50;
+  }
+  .mode-btn-alt {
+    @apply border text-stone-200 hover:text-white
+           focus-visible:ring-plume-300/30;
+    background: var(--surface-2);
+    border-color: var(--border-subtle);
+  }
+  .mode-btn-alt:hover {
+    background: var(--surface-3);
+    border-color: var(--border-strong);
+  }
+
+  /* Resume button — neutral, even smaller weight than mode-btn-alt. */
+  .btn-resume {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3
+           text-xs font-medium text-stone-300 transition-colors hover:text-white
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-plume-300/30;
+    background: var(--surface-1);
+    min-height: 36px;
+  }
+  .btn-resume:hover { background: var(--surface-2); }
+
+  /* ── Status pills ───────────────────────────────────────────────────── */
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-[2px] text-micro font-medium;
+  }
+  .pill-plume   { @apply bg-plume-500/15 text-plume-300; }
+  .pill-yellow  { @apply bg-plumeyellow-500/15 text-plumeyellow-400; }
+  .pill-success { @apply bg-emerald-500/15 text-emerald-400; }
+  .pill-warn    { @apply bg-amber-500/15 text-amber-400; }
+  .pill-danger  { @apply bg-rose-500/15 text-rose-400; }
+  .pill-zinc    { @apply bg-white/5 text-stone-400; }
+
+  /* ── Segmented progress bar ─────────────────────────────────────────── */
   .progress-segment {
     @apply flex h-1 w-32 gap-1 overflow-hidden;
   }
-
   .progress-segment > span {
-    @apply h-full flex-1 rounded-full bg-zinc-800 transition-colors duration-300;
+    @apply h-full flex-1 rounded-full bg-ink-700 transition-colors duration-300;
   }
-
-  .progress-segment > span.is-filled {
-    @apply bg-plume-500;
-  }
-
+  .progress-segment > span.is-filled,
   .progress-segment > span.is-current {
     @apply bg-plume-500;
+  }
+}
+
+/* ── Utility helpers used across panels ───────────────────────────────── */
+@layer utilities {
+  .border-subtle { border-color: var(--border-subtle); }
+  .border-faint  { border-color: var(--border-faint); }
+  .border-strong { border-color: var(--border-strong); }
+
+  .surface-1 { background: var(--surface-1); }
+  .surface-2 { background: var(--surface-2); }
+  .surface-3 { background: var(--surface-3); }
+  .surface-rail { background: var(--surface-rail); }
+
+  /* Expand-row reveal: avoid animating height. Grid-rows trick ramps a
+     tracksize from 0fr → 1fr, which Chrome can keyframe cheaply. */
+  .row-collapsed { display: grid; grid-template-rows: 0fr; }
+  .row-expanded  { display: grid; grid-template-rows: 1fr; }
+  .row-collapsed > *, .row-expanded > * {
+    overflow: hidden;
+    transition: grid-template-rows 180ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 }

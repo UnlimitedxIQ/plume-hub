@@ -29,6 +29,8 @@ import {
   type StyleSampleInput,
 } from '../lib/bridge'
 import { FileDropZone, type UploadedSample } from '../components/FileDropZone'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 type View = 'list' | 'create' | 'detail'
 type CreatePhase = 'form' | 'fetching' | 'analyzing' | 'error'
@@ -337,15 +339,15 @@ export function WritingStylePanel() {
       <div className="section-header">
         <Feather size={16} className="text-plume-400" />
         <div className="flex-1 min-w-0">
-          <h2 className="truncate text-base font-bold text-zinc-100">{title}</h2>
-          <p className="truncate text-xs text-zinc-500">{subtitle}</p>
+          <h2 className="truncate text-base font-bold text-stone-100">{title}</h2>
+          <p className="truncate text-xs text-stone-500">{subtitle}</p>
         </div>
 
         {view === 'list' && (
           <div className="flex items-center gap-2">
             <button
               onClick={goToAutoCreate}
-              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:bg-zinc-700"
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-stone-800 px-3 py-1.5 text-xs font-semibold text-stone-300 transition-colors hover:bg-stone-700"
               title="Auto-create from your last 20 individual Canvas submissions"
             >
               <Wand2 size={12} /> Auto from Canvas
@@ -475,7 +477,7 @@ function BackBar({ onBack }: { onBack: () => void }) {
     <div className="mb-4 flex items-center">
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/20 hover:text-zinc-200"
+        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-xs text-stone-400 transition-colors hover:border-white/20 hover:text-stone-200"
       >
         <ArrowLeft size={12} /> Back
       </button>
@@ -517,7 +519,7 @@ function ListView({
   if (error) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+        <div className="flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
           <AlertCircle size={12} /> {error}
         </div>
       </div>
@@ -543,7 +545,7 @@ function ListView({
       ))}
       <button
         onClick={onCreate}
-        className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 bg-white/[0.02] py-3 text-xs font-semibold text-zinc-400 transition-colors hover:border-plume-500/40 hover:bg-plume-500/5 hover:text-plume-300"
+        className="mt-2 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 bg-white/[0.02] py-3 text-xs font-semibold text-stone-400 transition-colors hover:border-plume-500/40 hover:bg-plume-500/5 hover:text-plume-300"
       >
         <Plus size={12} /> New profile
       </button>
@@ -563,8 +565,8 @@ function EmptyState({ onCreate, onAuto }: { onCreate: () => void; onAuto: () => 
         <Feather size={26} className="text-plume-400" />
       </div>
       <div className="max-w-sm">
-        <div className="text-sm font-semibold text-zinc-100">No writing styles yet</div>
-        <div className="mt-1.5 text-xs leading-relaxed text-zinc-400">
+        <div className="text-sm font-semibold text-stone-100">No writing styles yet</div>
+        <div className="mt-1.5 text-xs leading-relaxed text-stone-400">
           Plume analyzes 2 to 5 of your past papers and learns your voice — so when it
           drafts an assignment, it sounds like you wrote it. Takes about a minute.
         </div>
@@ -572,13 +574,13 @@ function EmptyState({ onCreate, onAuto }: { onCreate: () => void; onAuto: () => 
       <div className="mt-1 flex flex-col items-center gap-2">
         <button
           onClick={onAuto}
-          className="flex items-center gap-1.5 rounded-lg bg-plume-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-plume-600"
+          className="btn-primary-inline px-4 py-2"
         >
           <Wand2 size={12} /> Auto from Canvas
         </button>
         <button
           onClick={onCreate}
-          className="text-xs text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+          className="text-xs text-stone-400 underline-offset-2 hover:text-stone-200 hover:underline"
         >
           or upload manually
         </button>
@@ -613,18 +615,18 @@ function ProfileCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03 }}
       onClick={onOpen}
-      className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors ${
+      className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors duration-quick ease-quiet ${
         isActive
-          ? 'border-plume-500/40 bg-plume-500/5 hover:bg-plume-500/10'
-          : 'border-white/10 bg-white/[0.02] hover:border-white/20'
+          ? 'border-plumeyellow-400/40 bg-plume-700/30 ring-1 ring-plumeyellow-400/30 hover:bg-plume-700/40'
+          : 'border-subtle surface-2 hover:border-strong'
       }`}
     >
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-plume-500/15">
-        <Feather size={14} className="text-plume-400" />
+      <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${isActive ? 'bg-plumeyellow-500/20 text-plumeyellow-400' : 'bg-plume-500/15 text-plume-400'}`}>
+        <Feather size={14} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-zinc-100">{profile.name}</div>
-        <div className="truncate text-xs text-zinc-500">
+        <div className="truncate text-sm font-semibold text-stone-100">{profile.name}</div>
+        <div className="truncate text-xs text-stone-500">
           {profile.sampleCount} samples · {analyzedLabel}
         </div>
       </div>
@@ -635,15 +637,15 @@ function ProfileCard({
           if (!isActive) onSetActive()
         }}
         title={isActive ? 'Active' : 'Set active'}
-        className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+        className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-micro font-bold uppercase tracking-wider transition-colors ${
           isActive
             ? 'border-plume-500/50 bg-plume-500/20 text-plume-300'
-            : 'border-white/10 bg-white/5 text-zinc-500 hover:border-plume-500/30 hover:text-plume-300'
+            : 'border-white/10 bg-white/5 text-stone-500 hover:border-plume-500/30 hover:text-plume-300'
         }`}
       >
         <span
           className={`inline-flex h-2 w-2 items-center justify-center rounded-full ${
-            isActive ? 'bg-plume-400' : 'bg-zinc-700'
+            isActive ? 'bg-plume-400' : 'bg-stone-700'
           }`}
         />
         {isActive ? 'Active' : 'Inactive'}
@@ -657,13 +659,13 @@ function ProfileCard({
               onDelete()
               setConfirmDelete(false)
             }}
-            className="flex h-8 items-center gap-1 rounded-lg border border-red-500/50 bg-red-500/15 px-2 text-[10px] font-bold uppercase tracking-wider text-red-300 hover:bg-red-500/25"
+            className="flex h-8 items-center gap-1 rounded-lg border border-rose-500/50 bg-rose-500/15 px-2 text-micro font-bold uppercase tracking-wider text-rose-300 hover:bg-rose-500/25"
           >
             <Trash2 size={11} /> Delete?
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setConfirmDelete(false) }}
-            className="flex h-8 items-center rounded-lg border border-white/10 px-2 text-[10px] font-semibold text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+            className="flex h-8 items-center rounded-lg border border-white/10 px-2 text-micro font-semibold text-stone-400 hover:border-white/20 hover:text-stone-200"
           >
             Cancel
           </button>
@@ -672,7 +674,7 @@ function ProfileCard({
         <button
           onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
           title="Delete profile"
-          className="flex h-8 items-center gap-1 rounded-lg border border-white/10 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 transition-colors hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+          className="flex h-8 items-center gap-1 rounded-lg border border-white/10 px-2 text-micro font-bold uppercase tracking-wider text-stone-500 transition-colors hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
         >
           <Trash2 size={11} />
         </button>
@@ -714,7 +716,7 @@ function CreateForm({
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
       {/* Name */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+        <label className="text-micro font-bold uppercase tracking-wider text-stone-500">
           Profile name
         </label>
         <input
@@ -728,7 +730,7 @@ function CreateForm({
 
       {/* File drop zone */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+        <label className="text-micro font-bold uppercase tracking-wider text-stone-500">
           Upload documents
         </label>
         <FileDropZone
@@ -741,7 +743,7 @@ function CreateForm({
       {/* Divider */}
       <div className="flex items-center gap-3">
         <div className="h-px flex-1 bg-white/10" />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+        <span className="text-micro font-semibold uppercase tracking-wider text-stone-600">
           or paste text
         </span>
         <div className="h-px flex-1 bg-white/10" />
@@ -749,7 +751,7 @@ function CreateForm({
 
       {/* Samples */}
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+        <label className="text-micro font-bold uppercase tracking-wider text-stone-500">
           Writing samples ({validSamples}/{samples.length} ready)
         </label>
         {samples.map((sample, idx) => {
@@ -767,10 +769,10 @@ function CreateForm({
             >
               <div className="flex items-center gap-2">
                 <span
-                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-[1px] font-mono text-[10px] ${
+                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-[1px] font-mono text-micro ${
                     isUpload
                       ? 'border-plume-500/30 bg-plume-500/10 text-plume-300'
-                      : 'border-white/10 bg-zinc-900/60 text-zinc-400'
+                      : 'border-white/10 bg-stone-900/60 text-stone-400'
                   }`}
                   title={isUpload ? 'Uploaded file' : 'Pasted text'}
                 >
@@ -784,8 +786,8 @@ function CreateForm({
                   {sample.filename ?? kebabFilename(idx)}
                 </span>
                 <span
-                  className={`text-[10px] ${
-                    valid ? 'text-plume-400' : 'text-zinc-600'
+                  className={`text-micro ${
+                    valid ? 'text-plume-400' : 'text-stone-600'
                   }`}
                 >
                   {sample.content.trim().length} chars
@@ -795,7 +797,7 @@ function CreateForm({
                   <button
                     onClick={() => onRemoveSample(idx)}
                     title="Remove sample"
-                    className="ml-auto flex h-6 w-6 items-center justify-center rounded-md border border-white/10 text-zinc-500 transition-colors hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400"
+                    className="ml-auto flex h-6 w-6 items-center justify-center rounded-md border border-white/10 text-stone-500 transition-colors hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
                   >
                     <X size={11} />
                   </button>
@@ -810,7 +812,7 @@ function CreateForm({
                     : 'Paste a complete piece you wrote here…'
                 }
                 rows={isUpload ? 4 : 6}
-                className="w-full resize-y rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-plume-500/60 focus:ring-1 focus:ring-plume-500/30"
+                className="w-full resize-y rounded-lg border border-white/10 bg-stone-900/60 px-3 py-2 text-xs text-stone-200 outline-none placeholder:text-stone-600 focus:border-plume-500/60 focus:ring-1 focus:ring-plume-500/30"
               />
             </div>
           )
@@ -819,7 +821,7 @@ function CreateForm({
         {canAddMore && (
           <button
             onClick={onAddSample}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 bg-white/[0.02] py-2 text-xs font-semibold text-zinc-400 transition-colors hover:border-plume-500/40 hover:bg-plume-500/5 hover:text-plume-300"
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/15 bg-white/[0.02] py-2 text-xs font-semibold text-stone-400 transition-colors hover:border-plume-500/40 hover:bg-plume-500/5 hover:text-plume-300"
           >
             <Plus size={12} /> Add another sample
           </button>
@@ -835,7 +837,7 @@ function CreateForm({
         >
           <Feather size={14} /> Analyze with Claude
         </button>
-        <p className="text-center text-[10px] leading-relaxed text-zinc-500">
+        <p className="text-center text-micro leading-relaxed text-stone-500">
           Claude reads each sample, finds patterns across them, and writes a profile to
           ~/.claude/agents/. Takes about a minute.
         </p>
@@ -860,16 +862,16 @@ function AnalyzingState({ lines }: { lines: string[] }) {
         <Feather size={22} className="text-plume-400" />
       </motion.div>
       <div className="text-center">
-        <div className="text-sm font-semibold text-zinc-100">
+        <div className="text-sm font-semibold text-stone-100">
           Claude is learning your writing style
         </div>
-        <div className="mt-1 text-xs text-zinc-500">
+        <div className="mt-1 text-xs text-stone-500">
           This normally takes about a minute.
         </div>
       </div>
-      <div className="flex max-h-40 w-full flex-col gap-1 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950/60 p-3 font-mono text-[10px] text-plume-400">
+      <div className="flex max-h-40 w-full flex-col gap-1 overflow-y-auto rounded-xl border border-white/10 bg-stone-950/60 p-3 font-mono text-micro text-plume-400">
         {lines.length === 0 ? (
-          <span className="text-zinc-600">Starting analyzer…</span>
+          <span className="text-stone-600">Starting analyzer…</span>
         ) : (
           lines.map((line, i) => (
             <div key={i} className="truncate">
@@ -898,16 +900,16 @@ function AutoFetchingState({ lines }: { lines: string[] }) {
         <Wand2 size={22} className="text-plume-400" />
       </motion.div>
       <div className="text-center">
-        <div className="text-sm font-semibold text-zinc-100">
+        <div className="text-sm font-semibold text-stone-100">
           Reading your Canvas submissions
         </div>
-        <div className="mt-1 text-xs text-zinc-500">
+        <div className="mt-1 text-xs text-stone-500">
           Pulling up to 20 individual (non-team) assignments. Group work is skipped.
         </div>
       </div>
-      <div className="flex max-h-40 w-full flex-col gap-1 overflow-y-auto rounded-xl border border-white/10 bg-zinc-950/60 p-3 font-mono text-[10px] text-plume-400">
+      <div className="flex max-h-40 w-full flex-col gap-1 overflow-y-auto rounded-xl border border-white/10 bg-stone-950/60 p-3 font-mono text-micro text-plume-400">
         {lines.length === 0 ? (
-          <span className="text-zinc-600">Connecting to Canvas…</span>
+          <span className="text-stone-600">Connecting to Canvas…</span>
         ) : (
           lines.map((line, i) => (
             <div key={i} className="truncate">
@@ -922,13 +924,13 @@ function AutoFetchingState({ lines }: { lines: string[] }) {
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/5 p-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/15">
-        <AlertCircle size={22} className="text-red-400" />
+    <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-8 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/15">
+        <AlertCircle size={22} className="text-rose-400" />
       </div>
       <div>
-        <div className="text-sm font-semibold text-zinc-100">Analysis failed</div>
-        <div className="mt-1 text-xs text-zinc-400">{message}</div>
+        <div className="text-sm font-semibold text-stone-100">Analysis failed</div>
+        <div className="mt-1 text-xs text-stone-400">{message}</div>
       </div>
       <button
         onClick={onRetry}
@@ -967,7 +969,7 @@ function DetailView({
   if (state.error || !state.profile) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+        <div className="flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
           <AlertCircle size={12} /> {state.error ?? 'Profile not found.'}
         </div>
       </div>
@@ -986,18 +988,18 @@ function DetailView({
           <Feather size={18} className="text-plume-400" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-lg font-bold text-zinc-100">{profile.name}</h3>
+          <h3 className="truncate text-lg font-bold text-stone-100">{profile.name}</h3>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <StatChip label={`${profile.sampleCount} samples`} />
             <StatChip label={`Analyzed ${analyzedLabel}`} />
             {isActive ? (
-              <span className="flex items-center gap-1 rounded-md border border-plume-500/40 bg-plume-500/15 px-2 py-[2px] text-[10px] font-bold uppercase tracking-wider text-plume-300">
+              <span className="flex items-center gap-1 rounded-md border border-plume-500/40 bg-plume-500/15 px-2 py-[2px] text-micro font-bold uppercase tracking-wider text-plume-300">
                 <Check size={9} /> Active
               </span>
             ) : (
               <button
                 onClick={onSetActive}
-                className="rounded-md border border-white/10 bg-white/5 px-2 py-[2px] text-[10px] font-bold uppercase tracking-wider text-zinc-400 transition-colors hover:border-plume-500/30 hover:text-plume-300"
+                className="rounded-md border border-white/10 bg-white/5 px-2 py-[2px] text-micro font-bold uppercase tracking-wider text-stone-400 transition-colors hover:border-plume-500/30 hover:text-plume-300"
               >
                 Use this style
               </button>
@@ -1006,11 +1008,17 @@ function DetailView({
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden rounded-xl border border-white/10 bg-zinc-950/60">
-        <div className="h-full overflow-y-auto p-4">
-          <pre className="whitespace-pre-wrap font-mono text-xs text-zinc-300">
-            {markdown ?? '(empty profile)'}
-          </pre>
+      <div className="flex-1 overflow-hidden rounded-xl border border-subtle surface-1">
+        <div className="h-full overflow-y-auto p-6">
+          {markdown ? (
+            <div className="prose prose-invert prose-sm mx-auto max-w-2xl">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {markdown}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <p className="text-xs italic text-stone-500">(empty profile)</p>
+          )}
         </div>
       </div>
 
@@ -1058,13 +1066,13 @@ function DetailView({
                 onDelete()
                 setConfirmDelete(false)
               }}
-              className="flex items-center gap-1.5 rounded-lg border border-red-500/50 bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/25"
+              className="flex items-center gap-1.5 rounded-lg border border-rose-500/50 bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/25"
             >
               <Trash2 size={12} /> Delete permanently
             </button>
             <button
               onClick={() => setConfirmDelete(false)}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-stone-400 hover:border-white/20 hover:text-stone-200"
             >
               Cancel
             </button>
@@ -1072,7 +1080,7 @@ function DetailView({
         ) : (
           <button
             onClick={() => setConfirmDelete(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10"
+            className="flex items-center gap-1.5 rounded-lg border border-rose-500/20 px-3 py-1.5 text-xs font-semibold text-rose-400 transition-colors hover:border-rose-500/40 hover:bg-rose-500/10"
           >
             <Trash2 size={12} /> Delete profile
           </button>
@@ -1084,7 +1092,7 @@ function DetailView({
 
 function StatChip({ label }: { label: string }) {
   return (
-    <span className="rounded-md border border-white/10 bg-white/5 px-2 py-[2px] text-[10px] font-semibold text-zinc-400">
+    <span className="rounded-md border border-white/10 bg-white/5 px-2 py-[2px] text-micro font-semibold text-stone-400">
       {label}
     </span>
   )

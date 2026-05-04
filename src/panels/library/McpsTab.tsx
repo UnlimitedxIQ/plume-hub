@@ -100,8 +100,8 @@ export function McpsTab({
             <Server size={16} className="text-plume-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-bold text-zinc-100">MCP Servers</h2>
-            <p className="text-xs text-zinc-500">
+            <h2 className="text-base font-bold text-stone-100">MCP Servers</h2>
+            <p className="text-xs text-stone-500">
               {userScopeCount} user-scope · {pluginScopeCount} from plugins · {mcps.length} total
             </p>
           </div>
@@ -120,7 +120,7 @@ export function McpsTab({
             onClick={refresh}
             disabled={loading}
             title="Refresh"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-200 disabled:opacity-50"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-stone-500 transition-colors hover:border-white/20 hover:text-stone-200 disabled:opacity-50"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -138,7 +138,7 @@ export function McpsTab({
             <button
               onClick={() => { setEditing('__new__'); setFormError(null) }}
               title="Add new MCP server"
-              className="flex items-center gap-1 rounded-lg border border-plume-500/40 bg-plume-500/10 px-2 py-1 text-[10px] font-semibold text-plume-300 transition-colors hover:bg-plume-500/20"
+              className="flex items-center gap-1 rounded-lg border border-plume-500/40 bg-plume-500/10 px-2 py-1 text-micro font-semibold text-plume-300 transition-colors hover:bg-plume-500/20"
             >
               <Plus size={10} /> Add
             </button>
@@ -238,10 +238,10 @@ function SourceCategorySection({
       >
         <ChevronDown
           size={12}
-          className="text-zinc-500 transition-transform"
+          className="text-stone-500 transition-transform"
           style={{ transform: open ? 'rotate(0)' : 'rotate(-90deg)' }}
         />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{title}</span>
+        <span className="text-micro font-bold uppercase tracking-wider text-stone-400">{title}</span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -280,11 +280,11 @@ function CategoryGroup({
       >
         <ChevronDown
           size={11}
-          className="text-zinc-600 transition-transform"
+          className="text-stone-600 transition-transform"
           style={{ transform: open ? 'rotate(0)' : 'rotate(-90deg)' }}
         />
-        <span className="text-[11px] font-semibold text-zinc-300">{category}</span>
-        <span className="text-[10px] text-zinc-600">({mcps.length})</span>
+        <span className="text-micro font-semibold text-stone-300">{category}</span>
+        <span className="text-micro text-stone-600">({mcps.length})</span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -315,17 +315,17 @@ function SearchInput({
   width?: string
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/60 px-3 py-1.5 focus-within:border-plume-500/50">
-      <Search size={12} className="text-zinc-500" />
+    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-stone-900/60 px-3 py-1.5 focus-within:border-plume-500/50">
+      <Search size={12} className="text-stone-500" />
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search..."
-        className={`${width} bg-transparent text-xs text-zinc-200 placeholder-zinc-500 outline-none`}
+        className={`${width} bg-transparent text-xs text-stone-200 placeholder-stone-500 outline-none`}
       />
       {value && (
-        <button onClick={() => onChange('')} className="text-zinc-500 hover:text-zinc-300">×</button>
+        <button onClick={() => onChange('')} className="text-stone-500 hover:text-stone-300">×</button>
       )}
     </div>
   )
@@ -350,8 +350,8 @@ function ColumnHeader({
     <div className="flex flex-col gap-2 border-b border-white/8 px-3 py-3">
       <div className="flex items-center gap-2">
         {icon}
-        <span className="text-sm font-bold text-zinc-100">{title}</span>
-        <span className="text-[10px] text-zinc-500">{subtitle}</span>
+        <span className="text-sm font-bold text-stone-100">{title}</span>
+        <span className="text-micro text-stone-500">{subtitle}</span>
         {action && <span className="ml-auto">{action}</span>}
       </div>
       <SearchInput value={search} onChange={onSearch} />
@@ -379,21 +379,21 @@ function McpRow({
         <Server size={compact ? 12 : 14} className={`mt-0.5 ${isPlugin ? 'text-amber-400' : 'text-plume-400'}`} />
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className={`font-semibold text-zinc-100 ${compact ? 'text-xs' : 'text-sm'}`}>{mcp.name}</span>
+            <span className={`font-semibold text-stone-100 ${compact ? 'text-xs' : 'text-sm'}`}>{mcp.name}</span>
             {!compact && mcp.type && (
-              <span className="rounded border border-white/10 px-1.5 py-[1px] text-[9px] font-semibold uppercase text-zinc-500">
+              <span className="rounded border border-white/10 px-1.5 py-[1px] text-micro font-semibold uppercase text-stone-500">
                 {mcp.type}
               </span>
             )}
             {mcp.origin.type === 'plugin' && (
-              <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-[2px] text-[9px] font-semibold uppercase text-amber-300">
+              <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-[2px] text-micro font-semibold uppercase text-amber-300">
                 {compact ? 'plugin' : `plugin · ${mcp.origin.plugin}`}
               </span>
             )}
           </div>
-          <div className="mt-1 truncate font-mono text-[10px] text-zinc-500">{cmdline}</div>
+          <div className="mt-1 truncate font-mono text-micro text-stone-500">{cmdline}</div>
           {!compact && envKeys.length > 0 && (
-            <div className="mt-1 text-[10px] text-zinc-600">env: {envKeys.join(', ')}</div>
+            <div className="mt-1 text-micro text-stone-600">env: {envKeys.join(', ')}</div>
           )}
         </div>
         {!isPlugin && (
@@ -448,7 +448,7 @@ function McpForm({
 
   return (
     <div className="overflow-hidden rounded-xl border border-plume-500/40 bg-plume-500/5">
-      <div className="border-b border-plume-500/20 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-plume-300">
+      <div className="border-b border-plume-500/20 px-4 py-2 text-micro font-bold uppercase tracking-wider text-plume-300">
         {isNew ? 'Add MCP server' : `Edit ${initial.name}`}
       </div>
       <div className="flex flex-col gap-3 px-4 py-3">
@@ -457,7 +457,7 @@ function McpForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="my-mcp-server"
-            className="w-full rounded-lg border border-white/10 bg-zinc-900/60 px-2 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-plume-500/60"
+            className="w-full rounded-lg border border-white/10 bg-stone-900/60 px-2 py-1.5 text-xs text-stone-200 placeholder-stone-600 outline-none focus:border-plume-500/60"
           />
         </Field>
         <Field label="Command">
@@ -465,7 +465,7 @@ function McpForm({
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             placeholder="npx"
-            className="w-full rounded-lg border border-white/10 bg-zinc-900/60 px-2 py-1.5 text-xs font-mono text-zinc-200 placeholder-zinc-600 outline-none focus:border-plume-500/60"
+            className="w-full rounded-lg border border-white/10 bg-stone-900/60 px-2 py-1.5 text-xs font-mono text-stone-200 placeholder-stone-600 outline-none focus:border-plume-500/60"
           />
         </Field>
         <Field label="Args (space-separated, quote values with spaces)">
@@ -473,7 +473,7 @@ function McpForm({
             value={argsText}
             onChange={(e) => setArgsText(e.target.value)}
             placeholder='-y @some/package --flag "value with spaces"'
-            className="w-full rounded-lg border border-white/10 bg-zinc-900/60 px-2 py-1.5 text-xs font-mono text-zinc-200 placeholder-zinc-600 outline-none focus:border-plume-500/60"
+            className="w-full rounded-lg border border-white/10 bg-stone-900/60 px-2 py-1.5 text-xs font-mono text-stone-200 placeholder-stone-600 outline-none focus:border-plume-500/60"
           />
         </Field>
         <Field label="Environment variables (one KEY=VALUE per line)">
@@ -482,12 +482,12 @@ function McpForm({
             onChange={(e) => setEnvText(e.target.value)}
             rows={Math.max(2, envText.split('\n').length)}
             placeholder="API_KEY=sk-..."
-            className="w-full resize-none rounded-lg border border-white/10 bg-zinc-900/60 px-2 py-1.5 text-xs font-mono text-zinc-200 placeholder-zinc-600 outline-none focus:border-plume-500/60"
+            className="w-full resize-none rounded-lg border border-white/10 bg-stone-900/60 px-2 py-1.5 text-xs font-mono text-stone-200 placeholder-stone-600 outline-none focus:border-plume-500/60"
           />
         </Field>
 
         {error && (
-          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] text-red-300">
+          <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-micro text-rose-300">
             {error}
           </div>
         )}
@@ -495,14 +495,14 @@ function McpForm({
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={onCancel}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-300 transition-colors hover:bg-white/5"
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-stone-300 transition-colors hover:bg-white/5"
           >
             <X size={12} /> Cancel
           </button>
           <button
             onClick={submit}
             disabled={saving || !name.trim() || !command.trim()}
-            className="flex items-center gap-1.5 rounded-lg bg-plume-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-plume-600 disabled:opacity-50"
+            className="btn-primary-inline disabled:opacity-50"
           >
             {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
             {isNew ? 'Add' : 'Save'}
@@ -516,7 +516,7 @@ function McpForm({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
+      <span className="text-micro font-semibold uppercase tracking-wider text-stone-500">{label}</span>
       {children}
     </label>
   )
@@ -537,8 +537,8 @@ function IconBtn({
     <button
       onClick={(e) => { e.stopPropagation(); onClick() }}
       title={title}
-      className={`flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors ${
-        danger ? 'hover:bg-red-500/10 hover:text-red-400' : 'hover:bg-white/5 hover:text-zinc-200'
+      className={`flex h-7 w-7 items-center justify-center rounded-lg text-stone-500 transition-colors ${
+        danger ? 'hover:bg-rose-500/10 hover:text-rose-400' : 'hover:bg-white/5 hover:text-stone-200'
       }`}
     >
       {icon}
@@ -553,8 +553,8 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         <Server size={22} className="text-plume-400" />
       </div>
       <div>
-        <div className="text-sm font-semibold text-zinc-100">No MCP servers yet</div>
-        <div className="mt-1 max-w-sm text-xs text-zinc-500">
+        <div className="text-sm font-semibold text-stone-100">No MCP servers yet</div>
+        <div className="mt-1 max-w-sm text-xs text-stone-500">
           Add an MCP server to give Claude Code tools from a local or remote process.
         </div>
       </div>

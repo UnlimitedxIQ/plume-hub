@@ -298,6 +298,12 @@ const api = {
         content: string | null
         error?: string
       }>,
+    appendNote: (args: { projectDir: string; note: string }) =>
+      ipcRenderer.invoke('project:append-note', args) as Promise<{
+        ok: boolean
+        path?: string
+        error?: string
+      }>,
   },
   app: {
     clearAllData: () => ipcRenderer.invoke('app:clear-all-data') as Promise<{ ok: boolean; error?: string }>,

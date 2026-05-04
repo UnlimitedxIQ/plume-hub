@@ -5,12 +5,12 @@ import { SkillsTab } from './library/SkillsTab'
 import { McpsTab } from './library/McpsTab'
 import { ColumnLayout } from './library/ColumnLayout'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { Hero } from '../components/ui'
 
 type Tab = 'agents' | 'skills' | 'mcps'
 
-// At ≥ 900px the Library is rich enough to show all three categories side-by-
-// side; below that threshold the columns become too narrow and we fall back
-// to the tabbed view (current behaviour before this refactor).
+// At >= 900px the Library shows all three categories side-by-side; below
+// that we fall back to a tabbed view so the columns stay legible.
 const COLUMN_BREAKPOINT = '(min-width: 900px)'
 
 export function LibraryPanel() {
@@ -19,25 +19,29 @@ export function LibraryPanel() {
   // Bumped by the shared "Refresh all" button so each tab re-fetches in sync.
   const [refreshSignal, setRefreshSignal] = useState(0)
 
+  const refreshButton = (
+    <button
+      onClick={() => setRefreshSignal((n) => n + 1)}
+      aria-label="Refresh all"
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/15 text-white/80 transition-colors duration-quick ease-quiet hover:bg-white/10 hover:text-white"
+    >
+      <RefreshCw size={13} />
+    </button>
+  )
+
   if (isWide) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="section-header">
-          <BookOpen size={16} className="text-plume-400" />
-          <h2 className="text-base font-bold text-zinc-100">Library</h2>
-          <span className="hidden text-xs text-zinc-500 md:inline">
-            Browse agents, skills, and MCPs installed in <code className="rounded bg-zinc-900 px-1 text-[10px]">~/.claude/</code>
-          </span>
-          <div className="flex-1" />
-          <button
-            onClick={() => setRefreshSignal((n) => n + 1)}
-            title="Refresh all three columns"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-200"
-          >
-            <RefreshCw size={13} />
-          </button>
-        </div>
-
+        <Hero>
+          <div className="flex items-center gap-3">
+            <h1 className="text-display text-white">Library</h1>
+            <div className="flex-1" />
+            {refreshButton}
+          </div>
+          <p className="text-sm text-white/80">
+            Agents, skills, and MCPs installed in <code className="rounded bg-black/30 px-1.5 py-0.5 text-micro font-mono">~/.claude/</code>. Read-only on purpose.
+          </p>
+        </Hero>
         <ColumnLayout>
           <AgentsTab mode="column" refreshSignal={refreshSignal} />
           <SkillsTab mode="column" refreshSignal={refreshSignal} />
@@ -47,24 +51,20 @@ export function LibraryPanel() {
     )
   }
 
-  // Narrow window fallback — keep the existing tab experience unchanged so
-  // the user never loses access to anything when shrinking the window.
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="section-header">
-        <BookOpen size={16} className="text-plume-400" />
-        <h2 className="text-base font-bold text-zinc-100">Library</h2>
-        <div className="flex-1" />
-        <button
-          onClick={() => setRefreshSignal((n) => n + 1)}
-          title="Refresh"
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-zinc-500 transition-colors hover:border-white/20 hover:text-zinc-200"
-        >
-          <RefreshCw size={13} />
-        </button>
-      </div>
+      <Hero>
+        <div className="flex items-center gap-3">
+          <h1 className="text-display text-white">Library</h1>
+          <div className="flex-1" />
+          {refreshButton}
+        </div>
+        <p className="text-sm text-white/80">
+          Agents, skills, and MCPs installed in <code className="rounded bg-black/30 px-1.5 py-0.5 text-micro font-mono">~/.claude/</code>.
+        </p>
+      </Hero>
 
-      <div className="flex items-center gap-1 border-b border-white/[0.08] px-4 py-2">
+      <div className="flex items-center gap-1 border-b border-subtle px-4 py-2">
         <TabBtn active={tab === 'agents'} onClick={() => setTab('agents')} icon={<BookOpen size={13} />} label="Agents" />
         <TabBtn active={tab === 'skills'} onClick={() => setTab('skills')} icon={<Wand2 size={13} />} label="Skills" />
         <TabBtn active={tab === 'mcps'} onClick={() => setTab('mcps')} icon={<Server size={13} />} label="MCPs" />
@@ -91,10 +91,10 @@ function TabBtn({
   return (
     <button
       onClick={onClick}
-      className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors ${
+      className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors duration-quick ease-quiet ${
         active
-          ? 'bg-plume-500/15 text-plume-300'
-          : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-200'
+          ? 'bg-plume-700/40 text-white'
+          : 'text-stone-500 hover:bg-white/5 hover:text-stone-200'
       }`}
     >
       {icon}

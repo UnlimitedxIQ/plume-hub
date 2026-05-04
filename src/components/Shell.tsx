@@ -1,8 +1,6 @@
 import React from 'react'
 import { GraduationCap, BookOpen, Store, Feather, Eye, Settings } from 'lucide-react'
 import type { TabId } from '../lib/store'
-// Vite-imported as a fingerprinted URL at build time — the master 1024×1024
-// PNG downscales cleanly at the 40×40 render size used in the rail.
 import iconUrl from '../../assets/icon.png'
 
 interface ShellProps {
@@ -14,32 +12,36 @@ interface ShellProps {
 const TABS: { id: TabId; Icon: React.ElementType; label: string }[] = [
   { id: 'canvas',      Icon: GraduationCap, label: 'Canvas' },
   { id: 'library',     Icon: BookOpen,      label: 'Library' },
-  { id: 'marketplace', Icon: Store,         label: 'Marketplace' },
-  { id: 'style',       Icon: Feather,       label: 'Writing Style' },
-  { id: 'session',     Icon: Eye,           label: 'Live Preview' },
+  { id: 'marketplace', Icon: Store,         label: 'Market' },
+  { id: 'style',       Icon: Feather,       label: 'Voice' },
+  { id: 'session',     Icon: Eye,           label: 'Live' },
   { id: 'settings',    Icon: Settings,      label: 'Settings' },
 ]
 
 export function Shell({ children, activeTab, onTabClick }: ShellProps) {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-zinc-950">
-      {/* Left rail: brand + 6 tabs */}
-      <div className="flex w-14 flex-col items-center gap-1.5 border-r border-white/[0.08] bg-zinc-900/80 pt-3 pb-3">
-        {/* Brand mark — clickable, returns to Canvas */}
+    <div className="flex h-screen w-screen overflow-hidden bg-ink-950">
+      {/* Left rail: brand mark + 6 labeled tabs. Wider than before so the
+          labels can sit under the icons; tooltips are no longer the whole UX. */}
+      <nav
+        aria-label="Primary"
+        className="surface-rail border-r border-subtle flex w-20 flex-col items-stretch gap-0.5 px-2 pt-3 pb-3"
+      >
+        {/* Brand mark ,  clickable, returns to Canvas */}
         <button
           onClick={() => onTabClick('canvas')}
-          title="Plume Hub"
-          className="mb-1 rounded-xl outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-plume-500/50"
+          aria-label="Plume Hub home"
+          className="mx-auto mb-2 rounded-xl outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-plume-300/40"
         >
           <img
             src={iconUrl}
-            alt="Plume Hub"
-            className="h-9 w-9 rounded-xl shadow-md shadow-plume-900/40"
+            alt=""
+            className="brand-mark h-9 w-9 rounded-xl shadow-md shadow-plume-900/40"
             draggable={false}
           />
         </button>
 
-        <div className="h-px w-6 bg-white/[0.08]" />
+        <div className="mx-auto h-px w-8 border-faint border-t" />
 
         {TABS.map(({ id, Icon, label }) => {
           const isActive = id === activeTab
@@ -47,18 +49,22 @@ export function Shell({ children, activeTab, onTabClick }: ShellProps) {
             <button
               key={id}
               onClick={() => onTabClick(id)}
-              title={label}
-              className={`relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${
+              aria-label={label}
+              aria-current={isActive ? 'page' : undefined}
+              className={`group flex flex-col items-center justify-center gap-1 rounded-lg py-2 transition-colors duration-quick ease-quiet outline-none focus-visible:ring-2 focus-visible:ring-plume-300/40 ${
                 isActive
-                  ? 'border-l-2 border-plume-500 bg-plume-500/15 text-plume-300'
-                  : 'border-l-2 border-transparent text-zinc-500 hover:bg-white/5 hover:text-zinc-300'
+                  ? 'bg-plume-700/50 text-white'
+                  : 'text-stone-500 hover:bg-white/5 hover:text-stone-200'
               }`}
             >
-              <Icon size={isActive ? 20 : 18} />
+              <Icon size={18} strokeWidth={isActive ? 2.25 : 1.75} />
+              <span className={`text-micro font-medium leading-none tracking-wide ${isActive ? 'text-white' : 'text-stone-500 group-hover:text-stone-300'}`}>
+                {label}
+              </span>
             </button>
           )
         })}
-      </div>
+      </nav>
 
       {/* Panel content */}
       <div className="flex flex-1 flex-col overflow-hidden">

@@ -13,12 +13,12 @@ function isElectron(): boolean {
   return typeof window !== 'undefined' && typeof window.plume !== 'undefined'
 }
 
-// Settings — fallback shape mirrors Settings interface in main/settings.ts
+// Settings ,  fallback shape mirrors Settings interface in main/settings.ts
 export const getSettings = () =>
   isElectron()
     ? window.plume!.settings.get()
     : Promise.resolve({
-        // Browser-dev fallback — real settings come from Electron's IPC in production.
+        // Browser-dev fallback ,  real settings come from Electron's IPC in production.
         canvasBaseUrl: '',
         canvasToken: '',
         canvasCourseIds: [],
@@ -64,7 +64,7 @@ export const sendCanvasMessage = (args: { recipientIds: string[]; subject: strin
     ? window.plume!.canvas.sendMessage(args)
     : Promise.resolve({ ok: false, error: 'Not in Electron' })
 
-// Canvas — auto writing-style sample harvest
+// Canvas ,  auto writing-style sample harvest
 export interface CanvasWritingSample {
   filename: string
   content: string
@@ -128,7 +128,7 @@ export const detectProviders = (): Promise<ProviderDetection> =>
     ? window.plume!.provider.detect()
     : Promise.resolve({ claude: EMPTY_PROVIDER, codex: EMPTY_PROVIDER })
 
-// Skills scan (single list of agents — legacy)
+// Skills scan (single list of agents ,  legacy)
 export const scanSkills = () =>
   isElectron()
     ? window.plume!.skills.scan()
@@ -263,7 +263,7 @@ export interface LibraryMcp {
   origin: McpOrigin
 }
 
-// The shape accepted by add/update — origin is assigned server-side to 'user'.
+// The shape accepted by add/update ,  origin is assigned server-side to 'user'.
 export type LibraryMcpInput = Omit<LibraryMcp, 'origin'>
 
 export const scanLibraryMcps = (): Promise<{
@@ -317,7 +317,7 @@ export const installRecommendedPlugin = (id: string): Promise<{
     ? window.plume!.recommendedPlugins.installOne(id)
     : Promise.resolve({ ok: false, stdout: '', stderr: 'Not in Electron', exitCode: null })
 
-// Marketplace catalog — fetches from GitHub via main process, null on failure
+// Marketplace catalog ,  fetches from GitHub via main process, null on failure
 export interface RemoteCatalog {
   version: string
   lastUpdated: string
@@ -449,6 +449,15 @@ export const readProjectFile = (filePath: string): Promise<{
     ? window.plume!.project.readFile(filePath)
     : Promise.resolve({ ok: false, content: null, error: 'Not in Electron' })
 
+export const appendProjectNote = (args: { projectDir: string; note: string }): Promise<{
+  ok: boolean
+  path?: string
+  error?: string
+}> =>
+  isElectron()
+    ? window.plume!.project.appendNote(args)
+    : Promise.resolve({ ok: false, error: 'Not in Electron' })
+
 // ── App-level ───────────────────────────────────────────────────────────────
 
 export const clearAllData = () =>
@@ -523,7 +532,7 @@ export const setActiveStyleProfile = (id: string | null) =>
     : Promise.resolve({ ok: false, error: 'Not in Electron' })
 
 // Streaming progress lines from the analyzer subprocess (each stdout line).
-// Returns an unsubscribe function — call it on component unmount to avoid
+// Returns an unsubscribe function ,  call it on component unmount to avoid
 // stacking listeners across remounts.
 export const onStyleAnalysisProgress = (cb: (line: string) => void): (() => void) => {
   if (!isElectron()) return () => { /* no-op */ }

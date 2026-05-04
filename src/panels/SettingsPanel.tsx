@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   CheckCircle2, XCircle, Loader2, Settings as SettingsIcon,
   Zap, GraduationCap, RefreshCw, Key, Trash2,
-  AlertTriangle, Plus, Download, Package, Check,
+  AlertTriangle, Plus, Download, Package, Check, Database,
 } from 'lucide-react'
 import {
   getSettings,
@@ -20,6 +20,7 @@ import {
   installRecommendedPlugin,
   type MaskedVaultEntry,
 } from '../lib/bridge'
+import { IconBadge, StatusPill, Hero } from '../components/ui'
 
 interface Settings {
   canvasBaseUrl: string
@@ -31,6 +32,7 @@ interface Settings {
 }
 
 type TokenStatus = 'idle' | 'testing' | 'ok' | 'error'
+type SaveStatus = 'idle' | 'pending' | 'saved'
 
 export function SettingsPanel() {
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -38,12 +40,15 @@ export function SettingsPanel() {
   const [tokenUser, setTokenUser] = useState('')
   const [tokenError, setTokenError] = useState('')
   const [courseInput, setCourseInput] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [providers, setProviders] = useState<{
     claude: { detected: boolean; path: string | null }
     codex: { detected: boolean; path: string | null }
   } | null>(null)
+
+  const initialLoadRef = useRef(true)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     getSettings().then((s) => {
@@ -53,9 +58,34 @@ export function SettingsPanel() {
     detectProviders().then(setProviders)
   }, [])
 
+  // Auto-save: 600ms after the last change. The first effect run is the
+  // initial load, which we skip so we don't write back what we just read.
+  useEffect(() => {
+    if (!settings) return
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false
+      return
+    }
+    setSaveStatus('pending')
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(async () => {
+      const ids = courseInput
+        .split(/[,\s]+/)
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n))
+      await saveSettings({ ...settings, canvasCourseIds: ids } as unknown as Record<string, unknown>)
+      setSaveStatus('saved')
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+      savedTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000)
+    }, 600)
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [settings, courseInput])
+
   if (!settings) {
     return (
-      <div className="flex flex-1 items-center justify-center text-xs text-zinc-500">
+      <div className="flex flex-1 items-center justify-center text-xs text-stone-500">
         <Loader2 size={16} className="animate-spin" />
       </div>
     )
@@ -79,7 +109,7 @@ export function SettingsPanel() {
       setTokenUser((result.user as { name: string }).name)
     } else {
       setTokenStatus('error')
-      setTokenError((result.error as string) ?? 'Invalid token')
+      setTokenError((result.error as string) ?? 'That token did not work.')
     }
   }
 
@@ -92,20 +122,6 @@ export function SettingsPanel() {
     }
   }
 
-  async function handleSave() {
-    if (!settings) return
-    setSaving(true)
-    const ids = courseInput
-      .split(/[,\s]+/)
-      .map((s) => parseInt(s.trim(), 10))
-      .filter((n) => !isNaN(n))
-    const toSave = { ...settings, canvasCourseIds: ids }
-    await saveSettings(toSave as unknown as Record<string, unknown>)
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
-
   async function rerunOnboarding() {
     await saveSettings({ onboardingComplete: false } as Record<string, unknown>)
     window.location.reload()
@@ -113,57 +129,24 @@ export function SettingsPanel() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Header */}
-      <div className="section-header">
-        <SettingsIcon size={16} className="text-plume-400" />
-        <h2 className="text-base font-bold text-zinc-100">Settings</h2>
-        <span className="hidden text-xs text-zinc-500 md:inline">
-          Configure Plume Hub and connected services
-        </span>
-        <div className="flex-1" />
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-1.5 rounded-lg bg-plume-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-plume-600 disabled:opacity-60"
-        >
-          {saving ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : saved ? (
-            <CheckCircle2 size={12} />
-          ) : null}
-          {saved ? 'Saved!' : 'Save'}
-        </button>
-      </div>
+      <Hero>
+        <div className="flex items-center gap-3">
+          <h1 className="text-display text-white">Settings</h1>
+          <div className="flex-1" />
+          <SaveBadge status={saveStatus} />
+        </div>
+        <p className="text-sm text-white/80">Tune what Plume reads, what AI it launches, and where it stores secrets.</p>
+      </Hero>
 
-      {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
-          {/* ── AI Providers ─────────────────────────────────────────────── */}
-          <Section icon={<Zap size={14} />} title="AI Providers" description="Plume launches your terminal AI tool for each assignment">
-            <div className="flex flex-col gap-2">
-              <ProviderRow
-                name="Claude CLI"
-                detected={providers?.claude.detected ?? false}
-                resolvedPath={providers?.claude.path ?? null}
-                active={settings.preferredProvider === 'claude'}
-                onSetActive={() => update('preferredProvider', 'claude')}
-                installUrl="https://claude.ai/download"
-              />
-              <ProviderRow
-                name="Codex CLI"
-                detected={providers?.codex.detected ?? false}
-                resolvedPath={providers?.codex.path ?? null}
-                active={settings.preferredProvider === 'codex'}
-                onSetActive={() => update('preferredProvider', 'codex')}
-                installUrl="https://github.com/openai/codex"
-              />
-            </div>
-          </Section>
-
-          {/* ── Canvas ───────────────────────────────────────────────────── */}
-          <Section icon={<GraduationCap size={14} />} title="Canvas LMS" description="Connect your Canvas account to see upcoming assignments">
+          <PersonaCard
+            icon={<GraduationCap size={16} />}
+            title="Canvas"
+            blurb="Where Plume reads your assignments from."
+          >
             <div className="flex flex-col gap-4">
-              <Field label="Base URL">
+              <Field label="Canvas URL">
                 <input
                   className="input-field"
                   placeholder="https://canvas.yourschool.edu"
@@ -178,7 +161,7 @@ export function SettingsPanel() {
                     type="password"
                     className="input-field flex-1"
                     value={settings.canvasToken}
-                    placeholder="your-canvas-token"
+                    placeholder="paste-your-token"
                     onChange={(e) => {
                       update('canvasToken', e.target.value)
                       setTokenStatus('idle')
@@ -189,11 +172,7 @@ export function SettingsPanel() {
                     disabled={tokenStatus === 'testing' || !settings.canvasToken}
                     className="btn-secondary flex items-center gap-1 px-4"
                   >
-                    {tokenStatus === 'testing' ? (
-                      <Loader2 size={12} className="animate-spin" />
-                    ) : (
-                      'Test'
-                    )}
+                    {tokenStatus === 'testing' ? <Loader2 size={12} className="animate-spin" /> : 'Test'}
                   </button>
                 </div>
                 {tokenStatus === 'ok' && (
@@ -202,7 +181,7 @@ export function SettingsPanel() {
                   </span>
                 )}
                 {tokenStatus === 'error' && (
-                  <span className="mt-1 flex items-center gap-1 text-xs text-red-400">
+                  <span className="mt-1 flex items-center gap-1 text-xs text-rose-400">
                     <XCircle size={11} /> {tokenError}
                   </span>
                 )}
@@ -223,44 +202,177 @@ export function SettingsPanel() {
                     Auto-detect
                   </button>
                 </div>
-                <span className="mt-1 text-xs text-zinc-600">
-                  Comma-separated Canvas course IDs
+                <span className="mt-1 text-xs text-stone-500">
+                  Comma-separated Canvas course IDs.
                 </span>
               </Field>
-
             </div>
-          </Section>
+          </PersonaCard>
 
+          <PersonaCard
+            icon={<Zap size={16} />}
+            title="AI tools"
+            blurb="Pick the CLI Plume launches and the plugins that travel with it."
+          >
+            <div className="flex flex-col gap-3">
+              <ProviderRow
+                name="Claude CLI"
+                detected={providers?.claude.detected ?? false}
+                resolvedPath={providers?.claude.path ?? null}
+                active={settings.preferredProvider === 'claude'}
+                onSetActive={() => update('preferredProvider', 'claude')}
+                installUrl="https://claude.ai/download"
+              />
+              <ProviderRow
+                name="Codex CLI"
+                detected={providers?.codex.detected ?? false}
+                resolvedPath={providers?.codex.path ?? null}
+                active={settings.preferredProvider === 'codex'}
+                onSetActive={() => update('preferredProvider', 'codex')}
+                installUrl="https://github.com/openai/codex"
+              />
+            </div>
 
-          {/* ── Vault ────────────────────────────────────────────────────── */}
-          <Section
-            icon={<Key size={14} />}
-            title="Vault"
-            description="Encrypted local storage for API tokens and credentials. Values are encrypted via your OS keychain."
+            <div className="mt-5 flex items-center gap-2">
+              <Package size={13} className="text-stone-500" />
+              <span className="text-xs font-bold uppercase tracking-wide text-stone-400">Recommended plugins</span>
+            </div>
+            <p className="mt-1 text-xs text-stone-500">
+              Bundled with this Plume Hub build. Each one is fetched fresh via <code className="rounded bg-ink-700 px-1 text-micro">claude plugin install</code>.
+            </p>
+            <div className="mt-3">
+              <RecommendedPluginsManager />
+            </div>
+          </PersonaCard>
+
+          <PersonaCard
+            icon={<Key size={16} />}
+            title="Vault and data"
+            blurb="Encrypted local credentials, plus the nuclear options."
           >
             <VaultManager />
-          </Section>
+            <div className="mt-5">
+              <DataManagement onRerunOnboarding={rerunOnboarding} />
+            </div>
+          </PersonaCard>
 
-          {/* ── Recommended plugins ─────────────────────────────────────── */}
-          <Section
-            icon={<Package size={14} />}
-            title="Recommended plugins"
-            description="Install the Claude Code plugins bundled with Plume. Each one is fetched fresh from its marketplace via `claude plugin install` — you can skip any you don't want."
-          >
-            <RecommendedPluginsManager />
-          </Section>
-
-          {/* ── Data management ──────────────────────────────────────────── */}
-          <Section icon={<Trash2 size={14} />} title="Data Management">
-            <DataManagement onRerunOnboarding={rerunOnboarding} />
-          </Section>
+          <UpdateRow />
         </div>
       </div>
     </div>
   )
 }
 
-// ── Vault manager ─────────────────────────────────────────────────────────────
+// ── Persona card ─────────────────────────────────────────────────────────────
+
+function PersonaCard({
+  icon,
+  title,
+  blurb,
+  children,
+}: {
+  icon: React.ReactNode
+  title: string
+  blurb: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-2xl border border-subtle surface-1 p-6">
+      <header className="mb-4 flex items-start gap-3">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-plume-700/40 text-plumeyellow-400">
+          {icon}
+        </span>
+        <div>
+          <h2 className="text-base font-bold text-stone-50">{title}</h2>
+          <p className="mt-0.5 text-xs text-stone-500">{blurb}</p>
+        </div>
+      </header>
+      {children}
+    </section>
+  )
+}
+
+function SaveBadge({ status }: { status: SaveStatus }) {
+  if (status === 'idle') return null
+  if (status === 'pending') {
+    return (
+      <span className="pill pill-zinc"><Loader2 size={11} className="animate-spin" /> Saving</span>
+    )
+  }
+  return <span className="pill pill-success"><Check size={11} /> Saved</span>
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="label-field">{label}</span>
+      {children}
+    </div>
+  )
+}
+
+// ── Provider row ─────────────────────────────────────────────────────────────
+
+function ProviderRow({
+  name,
+  detected,
+  resolvedPath,
+  active,
+  onSetActive,
+  installUrl,
+}: {
+  name: string
+  detected: boolean
+  resolvedPath: string | null
+  active: boolean
+  onSetActive: () => void
+  installUrl: string
+}) {
+  return (
+    <div className="card flex items-center gap-3">
+      <IconBadge size="sm" tone={detected ? 'emerald' : 'zinc'}>
+        {detected ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+      </IconBadge>
+
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-semibold text-stone-100">{name}</div>
+        <div className={`text-xs ${detected ? 'text-emerald-400' : 'text-stone-500'}`}>
+          {detected ? 'Installed and ready' : 'Not detected'}
+        </div>
+        {detected && resolvedPath && (
+          <div className="mt-0.5 truncate font-mono text-xs text-stone-500" title={resolvedPath}>
+            {resolvedPath}
+          </div>
+        )}
+      </div>
+
+      {detected ? (
+        <button
+          onClick={onSetActive}
+          disabled={active}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors duration-quick ease-quiet ${
+            active
+              ? 'bg-plume-500/20 text-plume-300'
+              : 'border border-subtle text-stone-400 hover:bg-white/5'
+          }`}
+        >
+          {active ? 'Active' : 'Use this'}
+        </button>
+      ) : (
+        <a
+          href={installUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs font-semibold text-plume-300 hover:text-plume-200 hover:underline"
+        >
+          Install
+        </a>
+      )}
+    </div>
+  )
+}
+
+// ── Vault manager ────────────────────────────────────────────────────────────
 
 function VaultManager() {
   const [entries, setEntries] = useState<MaskedVaultEntry[] | null>(null)
@@ -308,47 +420,53 @@ function VaultManager() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3">
-        <Loader2 size={14} className="animate-spin text-zinc-500" />
-        <span className="text-xs text-zinc-500">Loading vault…</span>
+      <div className="card flex items-center gap-2">
+        <Loader2 size={14} className="animate-spin text-stone-500" />
+        <span className="text-xs text-stone-500">Loading vault...</span>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <Database size={13} className="text-stone-500" />
+        <span className="text-xs font-bold uppercase tracking-wide text-stone-400">Stored credentials</span>
+        <span className="text-micro text-stone-500">{entries?.length ?? 0} entries</span>
+      </div>
+      <p className="text-xs text-stone-500">
+        Encrypted via your OS keychain. Used by MCP servers that need API keys.
+      </p>
+
       {entries && entries.length > 0 ? (
-        <div className="flex max-h-96 flex-col gap-2 overflow-y-auto pr-1">
+        <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
           {entries.map((entry) => (
-          <div
-            key={entry.key}
-            className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-zinc-200">{entry.label}</div>
-              <div className="mt-0.5 flex items-center gap-2 font-mono text-xs text-zinc-500">
-                <span>{entry.key}</span>
-                <span className="text-zinc-700">·</span>
-                <span className="text-zinc-400">{entry.maskedValue}</span>
+            <div key={entry.key} className="card flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-stone-200">{entry.label}</div>
+                <div className="mt-0.5 flex items-center gap-2 font-mono text-xs text-stone-500">
+                  <span>{entry.key}</span>
+                  <span className="text-stone-700">·</span>
+                  <span className="text-stone-400">{entry.maskedValue}</span>
+                </div>
               </div>
+              <StatusPill tone="zinc" className="uppercase">
+                {entry.category}
+              </StatusPill>
+              <button
+                onClick={() => handleDelete(entry.key)}
+                aria-label="Delete"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-500 transition-colors duration-quick ease-quiet hover:bg-rose-500/10 hover:text-rose-400"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
-            <span className="rounded-md border border-white/10 bg-white/5 px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-              {entry.category}
-            </span>
-            <button
-              onClick={() => handleDelete(entry.key)}
-              title="Delete"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-white/10 bg-zinc-900/40 px-4 py-6 text-center">
-          <Key size={20} className="mx-auto mb-2 text-zinc-600" />
-          <p className="text-xs text-zinc-500">No entries yet. Add credentials to use them with MCP servers.</p>
+        <div className="rounded-xl border border-dashed border-subtle surface-1 px-4 py-5 text-center">
+          <Key size={20} className="mx-auto mb-2 text-stone-600" />
+          <p className="text-xs text-stone-500">No credentials stored yet.</p>
         </div>
       )}
 
@@ -390,13 +508,13 @@ function VaultManager() {
             <button
               onClick={handleAdd}
               disabled={saving || !newKey.trim() || !newValue.trim() || !newLabel.trim()}
-              className="rounded-lg bg-plume-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-plume-600 disabled:opacity-50"
+              className="btn-primary-inline px-4 py-2"
             >
               {saving ? <Loader2 size={12} className="animate-spin" /> : 'Save'}
             </button>
             <button
               onClick={() => setAdding(false)}
-              className="rounded-lg border border-white/10 px-3 py-2 text-xs text-zinc-400 transition-colors hover:bg-white/5"
+              className="btn-ghost px-3 py-2"
             >
               Cancel
             </button>
@@ -405,9 +523,9 @@ function VaultManager() {
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/10 bg-zinc-900/40 py-2.5 text-xs font-medium text-zinc-400 transition-colors hover:border-plume-500/40 hover:bg-plume-500/5 hover:text-plume-300"
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-subtle surface-1 py-2.5 text-xs font-medium text-stone-400 transition-colors duration-quick ease-quiet hover:border-plume-500/40 hover:bg-plume-500/5 hover:text-plume-300"
         >
-          <Plus size={12} /> Add entry
+          <Plus size={12} /> Add credential
         </button>
       )}
     </div>
@@ -438,7 +556,7 @@ function RecommendedPluginsManager() {
       recommended.map((id) => ({
         id,
         status: installedSet.has(id) ? 'done' : 'idle',
-      }))
+      })),
     )
     setLoading(false)
   }
@@ -452,15 +570,15 @@ function RecommendedPluginsManager() {
       r.map((row) =>
         row.id === id
           ? { ...row, status: res.ok ? 'done' : 'failed', error: res.ok ? undefined : (res.stderr || res.stdout || `exit ${res.exitCode}`).slice(0, 200) }
-          : row
-      )
+          : row,
+      ),
     )
   }
 
   async function installAllMissing() {
     if (busy) return
     setBusy(true)
-    setMarketplaceMsg('Registering marketplaces…')
+    setMarketplaceMsg('Registering marketplaces...')
     const mktResult = await ensurePluginMarketplaces()
     const mktErrors = mktResult.results.filter((r) => !r.ok)
     if (mktErrors.length > 0) {
@@ -468,13 +586,11 @@ function RecommendedPluginsManager() {
     } else {
       setMarketplaceMsg(null)
     }
-
     const pending = rows.filter((r) => r.status === 'idle' || r.status === 'failed')
     for (const row of pending) {
       await installOne(row.id)
     }
     setBusy(false)
-    // Refresh once more to pick up any state changes the installer itself wrote.
     refresh()
   }
 
@@ -485,45 +601,42 @@ function RecommendedPluginsManager() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 px-3 py-4 text-xs text-zinc-500">
-        <Loader2 size={14} className="animate-spin" /> Loading recommended plugins…
+      <div className="flex items-center gap-2 text-xs text-stone-500">
+        <Loader2 size={14} className="animate-spin" /> Loading recommended plugins...
       </div>
     )
   }
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-white/10 bg-zinc-900/40 px-4 py-3 text-xs text-zinc-500">
-        No recommended plugins bundled with this Plume Hub build.
+      <div className="card text-xs text-stone-500">
+        No recommended plugins bundled with this build.
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Summary + bulk action */}
-      <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3">
-        <div className="flex-1 text-xs text-zinc-400">
-          <span className="font-semibold text-zinc-200">
-            {doneCount} / {rows.length}
-          </span>
-          {' '}installed
-          {failedCount > 0 && <span className="ml-2 text-red-400">· {failedCount} failed</span>}
-          {installingCount > 0 && <span className="ml-2 text-plume-300">· {installingCount} running</span>}
-          {marketplaceMsg && <div className="mt-1 text-[11px] text-amber-400">{marketplaceMsg}</div>}
-        </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-stone-300">
+          <span className="font-semibold text-stone-100">{doneCount}</span>
+          <span className="text-stone-500"> of {rows.length} installed</span>
+        </span>
+        {failedCount > 0 && <StatusPill tone="danger">{failedCount} failed</StatusPill>}
+        {installingCount > 0 && <StatusPill tone="plume">{installingCount} running</StatusPill>}
+        {marketplaceMsg && <StatusPill tone="warn">{marketplaceMsg}</StatusPill>}
+        <div className="flex-1" />
         <button
           onClick={installAllMissing}
           disabled={busy || pendingCount === 0}
-          className="flex items-center gap-1.5 rounded-lg bg-plume-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-plume-600 disabled:opacity-50"
+          className="btn-primary-inline disabled:opacity-50"
         >
           {busy ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-          {busy ? 'Installing…' : pendingCount === 0 ? 'All installed' : `Install ${pendingCount} missing`}
+          {busy ? 'Installing...' : pendingCount === 0 ? 'All installed' : `Install ${pendingCount} missing`}
         </button>
       </div>
 
-      {/* Per-plugin list */}
-      <div className="max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-zinc-900/40">
+      <div className="max-h-72 overflow-y-auto rounded-xl border border-subtle surface-2">
         {rows.map((row) => (
           <PluginRow key={row.id} row={row} onInstall={() => installOne(row.id)} disabled={busy} />
         ))}
@@ -541,36 +654,30 @@ function PluginRow({
   onInstall: () => void
   disabled: boolean
 }) {
-  // Split "plugin@marketplace" for cleaner display
   const [name, marketplace] = row.id.split('@')
-
   return (
-    <div className="flex items-center gap-3 border-b border-white/5 px-4 py-2 last:border-b-0">
-      <Package size={12} className="text-zinc-500" />
+    <div className="flex items-center gap-3 border-b border-faint px-4 py-2 last:border-b-0">
+      <Package size={12} className="text-stone-500" />
       <div className="flex-1 min-w-0">
-        <div className="truncate text-xs font-medium text-zinc-200">{name}</div>
-        <div className="truncate text-[10px] text-zinc-600">
+        <div className="truncate text-xs font-medium text-stone-200">{name}</div>
+        <div className="truncate text-xs text-stone-500">
           {marketplace}
-          {row.error && <span className="ml-2 text-red-400">· {row.error}</span>}
+          {row.error && <span className="ml-2 text-rose-400">· {row.error}</span>}
         </div>
       </div>
       {row.status === 'done' ? (
-        <span className="flex items-center gap-1 text-[11px] font-semibold text-plume-300">
-          <Check size={11} /> installed
-        </span>
+        <StatusPill tone="success" icon={<Check size={11} />}>installed</StatusPill>
       ) : row.status === 'installing' ? (
-        <span className="flex items-center gap-1 text-[11px] font-semibold text-plume-300">
-          <Loader2 size={11} className="animate-spin" /> installing
-        </span>
+        <StatusPill tone="plume" icon={<Loader2 size={11} className="animate-spin" />}>installing</StatusPill>
       ) : (
         <button
           onClick={onInstall}
           disabled={disabled}
-          className={`rounded-lg border px-2 py-1 text-[10px] font-semibold transition-colors ${
+          className={`rounded-lg border px-2 py-1 text-micro font-semibold transition-colors duration-quick ease-quiet disabled:opacity-50 ${
             row.status === 'failed'
-              ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20'
+              ? 'border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
               : 'border-plume-500/40 bg-plume-500/10 text-plume-300 hover:bg-plume-500/20'
-          } disabled:opacity-50`}
+          }`}
         >
           {row.status === 'failed' ? 'Retry' : 'Install'}
         </button>
@@ -579,81 +686,55 @@ function PluginRow({
   )
 }
 
-// ── Data management ───────────────────────────────────────────────────────────
+// ── Data management ──────────────────────────────────────────────────────────
 
 function DataManagement({ onRerunOnboarding }: { onRerunOnboarding: () => void }) {
   const [confirming, setConfirming] = useState(false)
   const [clearing, setClearing] = useState(false)
-  const [checking, setChecking] = useState(false)
-  const [updateMsg, setUpdateMsg] = useState('')
-
-  async function handleCheckUpdates() {
-    setChecking(true)
-    setUpdateMsg('')
-    const result = await checkForUpdates()
-    setChecking(false)
-    if (result.ok) {
-      setUpdateMsg(result.upToDate ? `Up to date (v${result.latestVersion})` : `Update available: v${result.latestVersion}`)
-      setTimeout(() => setUpdateMsg(''), 4000)
-    }
-  }
 
   async function handleClearAll() {
     setClearing(true)
     await clearAllData()
-    // App will relaunch; this line rarely reached
     setClearing(false)
   }
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        onClick={handleCheckUpdates}
-        disabled={checking}
-        className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-left transition-colors hover:border-white/20 disabled:opacity-50"
-      >
-        {checking ? (
-          <Loader2 size={14} className="animate-spin text-zinc-400" />
-        ) : (
-          <Download size={14} className="text-zinc-400" />
-        )}
-        <div className="flex-1">
-          <div className="text-sm font-medium text-zinc-200">Check for updates</div>
-          <div className="text-xs text-zinc-500">{updateMsg || 'See if a newer version of Plume Hub is available'}</div>
-        </div>
-      </button>
+      <div className="flex items-center gap-2">
+        <Trash2 size={13} className="text-stone-500" />
+        <span className="text-xs font-bold uppercase tracking-wide text-stone-400">Reset</span>
+      </div>
 
       <button
         onClick={onRerunOnboarding}
-        className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3 text-left transition-colors hover:border-white/20"
+        className="card-interactive flex w-full items-center gap-3 text-left"
       >
-        <RefreshCw size={14} className="text-zinc-400" />
+        <IconBadge size="sm" tone="zinc">
+          <RefreshCw size={14} className="text-stone-300" />
+        </IconBadge>
         <div className="flex-1">
-          <div className="text-sm font-medium text-zinc-200">Reset to setup wizard</div>
-          <div className="text-xs text-zinc-500">Re-run the first-launch onboarding</div>
+          <div className="text-sm font-medium text-stone-200">Re-run setup</div>
+          <div className="text-xs text-stone-500">Walks you through provider + Canvas again.</div>
         </div>
       </button>
 
       {confirming ? (
-        <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/5 p-3">
+        <div className="flex flex-col gap-2 rounded-xl border border-rose-500/30 bg-rose-500/5 p-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-red-400" />
-            <div className="text-xs text-zinc-300">
-              This will delete all Plume Hub settings and vault entries. Your Canvas connection, provider choice, installed skills, and saved credentials will be wiped. The app will restart.
+            <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-rose-400" />
+            <div className="text-xs text-stone-300">
+              Wipes all Plume Hub settings and vault entries. Your Canvas connection, provider choice, installed skills, and saved credentials all go. The app restarts.
             </div>
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleClearAll}
               disabled={clearing}
-              className="flex-1 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+              className="flex-1 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors duration-quick ease-quiet hover:bg-rose-600 disabled:opacity-50"
             >
               {clearing ? <Loader2 size={12} className="animate-spin" /> : 'Yes, wipe everything'}
             </button>
-            <button
-              onClick={() => setConfirming(false)}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-white/5"
-            >
+            <button onClick={() => setConfirming(false)} className="btn-ghost px-3 py-1.5">
               Cancel
             </button>
           </div>
@@ -661,12 +742,14 @@ function DataManagement({ onRerunOnboarding }: { onRerunOnboarding: () => void }
       ) : (
         <button
           onClick={() => setConfirming(true)}
-          className="flex w-full items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-left text-red-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10"
+          className="flex w-full items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3 text-left text-rose-300 transition-colors duration-quick ease-quiet hover:border-rose-500/40 hover:bg-rose-500/10"
         >
-          <Trash2 size={14} />
+          <IconBadge size="sm" tone="rose">
+            <Trash2 size={14} />
+          </IconBadge>
           <div className="flex-1">
             <div className="text-sm font-medium">Clear all data</div>
-            <div className="text-xs text-red-400/70">Wipe settings, vault, and installed skills</div>
+            <div className="text-xs text-rose-300/70">Settings, vault, installed skills.</div>
           </div>
         </button>
       )}
@@ -674,106 +757,34 @@ function DataManagement({ onRerunOnboarding }: { onRerunOnboarding: () => void }
   )
 }
 
-// ── Section ───────────────────────────────────────────────────────────────────
+// ── Update row (slim, lives at the bottom) ──────────────────────────────────
 
-function Section({
-  icon,
-  title,
-  description,
-  children,
-}: {
-  icon: React.ReactNode
-  title: string
-  description?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section>
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-plume-400">{icon}</span>
-        <h3 className="text-sm font-bold text-zinc-100">{title}</h3>
-      </div>
-      {description && (
-        <p className="mb-3 text-xs text-zinc-500">{description}</p>
-      )}
-      {children}
-    </section>
-  )
-}
+function UpdateRow() {
+  const [checking, setChecking] = useState(false)
+  const [msg, setMsg] = useState<string>('')
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  async function handleCheck() {
+    setChecking(true)
+    setMsg('')
+    const result = await checkForUpdates()
+    setChecking(false)
+    if (result.ok) {
+      setMsg(result.upToDate ? `Up to date (v${result.latestVersion})` : `Update available: v${result.latestVersion}`)
+      setTimeout(() => setMsg(''), 6000)
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="label-field">{label}</span>
-      {children}
+    <div className="flex items-center gap-3 px-1 text-xs text-stone-500">
+      <span>Plume Hub</span>
+      <button
+        onClick={handleCheck}
+        disabled={checking}
+        className="font-semibold text-plume-300 hover:text-plume-200 disabled:opacity-50"
+      >
+        {checking ? 'Checking...' : 'Check for updates'}
+      </button>
+      {msg && <span className="text-stone-400">{msg}</span>}
     </div>
   )
 }
-
-// ── Provider Row ──────────────────────────────────────────────────────────────
-
-function ProviderRow({
-  name,
-  detected,
-  resolvedPath,
-  active,
-  onSetActive,
-  installUrl,
-}: {
-  name: string
-  detected: boolean
-  resolvedPath: string | null
-  active: boolean
-  onSetActive: () => void
-  installUrl: string
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 px-4 py-3">
-      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-        detected ? 'bg-emerald-500/15' : 'bg-zinc-800/50'
-      }`}>
-        {detected ? (
-          <CheckCircle2 size={14} className="text-emerald-400" />
-        ) : (
-          <XCircle size={14} className="text-zinc-600" />
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-zinc-100">{name}</div>
-        <div className={`text-xs ${detected ? 'text-emerald-400' : 'text-zinc-500'}`}>
-          {detected ? 'Installed and ready' : 'Not detected'}
-        </div>
-        {detected && resolvedPath && (
-          <div className="mt-0.5 truncate font-mono text-[10px] text-zinc-500" title={resolvedPath}>
-            {resolvedPath}
-          </div>
-        )}
-      </div>
-
-      {detected ? (
-        <button
-          onClick={onSetActive}
-          disabled={active}
-          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-            active
-              ? 'bg-plume-500/20 text-plume-300'
-              : 'border border-white/10 text-zinc-400 hover:bg-white/5'
-          }`}
-        >
-          {active ? 'ACTIVE' : 'Use this'}
-        </button>
-      ) : (
-        <a
-          href={installUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs text-plume-400 hover:underline"
-        >
-          Install →
-        </a>
-      )}
-    </div>
-  )
-}
-

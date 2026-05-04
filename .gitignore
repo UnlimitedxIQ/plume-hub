@@ -8,3 +8,7 @@ Thumbs.db
 # Generated at build time by scripts/bundle-user-library.mjs —
 # snapshot of the author's ~/.claude/ library, packed into the installer.
 resources/bundled-library/
+
+# Local revert backups (folder + companion files copied before risky redesigns).
+_backup_*/
+_backup_*

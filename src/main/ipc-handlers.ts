@@ -669,6 +669,26 @@ export function setupIpcHandlers(win: BrowserWindow): void {
     }
   })
 
+  // Append-only writer used by Session's "Note for Claude" feature. Locked
+  // down to the same path-allow check as read; only appends a fenced block
+  // with a timestamp so old notes accumulate rather than overwrite.
+  ipcMain.handle('project:append-note', (_e, args: { projectDir: string; note: string }) => {
+    try {
+      if (!isPathAllowed(args.projectDir)) return { ok: false, error: 'Access denied' }
+      if (!fs.existsSync(args.projectDir)) return { ok: false, error: 'Project not found' }
+      const trimmed = (args.note ?? '').trim()
+      if (!trimmed) return { ok: false, error: 'Empty note' }
+      if (trimmed.length > 4000) return { ok: false, error: 'Note too long (>4000 chars)' }
+      const file = path.join(args.projectDir, '_notes.md')
+      const stamp = new Date().toISOString()
+      const block = `\n\n## Note from student, ${stamp}\n${trimmed}\n`
+      fs.appendFileSync(file, block, 'utf-8')
+      return { ok: true, path: file }
+    } catch (e) {
+      return { ok: false, error: (e as Error).message }
+    }
+  })
+
   // ── App-level actions ────────────────────────────────────────────────────────
 
   ipcMain.handle('app:clear-all-data', async () => {

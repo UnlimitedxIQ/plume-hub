@@ -29,7 +29,7 @@ export class ErrorBoundary extends React.Component<
   }
 
   handleReload = (): void => {
-    // Full reload is safer than a soft reset — clears any mid-render state
+    // Full reload is safer than a soft reset ,  clears any mid-render state
     // from the broken subtree. In Electron this reloads the renderer
     // process; the main process stays up so window position, vault, etc.
     // all survive.
@@ -46,14 +46,14 @@ export class ErrorBoundary extends React.Component<
     if (!this.state.error) return this.props.children
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-zinc-200">
-        <div className="w-full max-w-lg rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-sm">
-          <AlertTriangle size={26} className="mb-3 text-red-400" />
-          <div className="mb-2 text-base font-semibold text-zinc-100">
+      <div className="flex min-h-screen items-center justify-center bg-stone-950 px-4 text-stone-200">
+        <div className="w-full max-w-lg rounded-2xl border border-rose-500/30 bg-rose-500/5 p-6 text-sm">
+          <AlertTriangle size={26} className="mb-3 text-rose-400" />
+          <div className="mb-2 text-base font-semibold text-stone-100">
             Something went wrong
           </div>
-          <div className="mb-4 text-zinc-400">
-            Plume Hub hit an unexpected error in the UI. Your data is safe —
+          <div className="mb-4 text-stone-400">
+            Plume Hub hit an unexpected error in the UI. Your data is safe , 
             reloading usually clears it. If the problem keeps happening,
             please{' '}
             <a
@@ -67,11 +67,11 @@ export class ErrorBoundary extends React.Component<
             with the message below.
           </div>
 
-          <div className="mb-4 rounded-xl border border-red-500/20 bg-black/40">
-            <div className="border-b border-red-500/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+          <div className="mb-4 rounded-xl border border-rose-500/20 bg-black/40">
+            <div className="border-b border-rose-500/15 px-3 py-1.5 font-mono text-micro uppercase tracking-wider text-stone-500">
               Error details
             </div>
-            <pre className="max-h-48 overflow-auto px-3 py-2 font-mono text-[11px] text-red-300">
+            <pre className="max-h-48 overflow-auto px-3 py-2 font-mono text-micro text-rose-300">
               {String(this.state.error.stack ?? this.state.error.message)}
             </pre>
           </div>
@@ -85,7 +85,7 @@ export class ErrorBoundary extends React.Component<
             </button>
             <button
               onClick={this.handleClearData}
-              className="flex-1 rounded-lg border border-red-500/30 px-4 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10"
+              className="flex-1 rounded-lg border border-rose-500/30 px-4 py-2 text-xs font-semibold text-rose-400 transition-colors hover:bg-rose-500/10"
             >
               Clear data and restart
             </button>

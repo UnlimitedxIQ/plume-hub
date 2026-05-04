@@ -210,3 +210,51 @@ export const CATEGORY_COLORS: Record<McpServer['category'], string> = {
   development:  '#22c55e',
   ai:           '#a855f7',
 }
+
+// ── Use cases ────────────────────────────────────────────────────────────────
+// Top-level frame for the Marketplace. Each use case bundles the packs +
+// MCPs that, together, unlock a real student outcome.
+
+export interface UseCase {
+  id: string
+  headline: string
+  body: string
+  Icon: React.ElementType
+  packIds: string[]
+  mcpIds: string[]
+}
+
+export const USE_CASES: UseCase[] = [
+  {
+    id: 'write-better',
+    headline: 'Write essays better',
+    body: 'Pull rubrics from Canvas, draft in your voice, polish to submission quality.',
+    Icon: BookOpen,
+    packIds: ['student-essentials', 'academic-writing'],
+    mcpIds: ['canvas-lms', 'google-drive'],
+  },
+  {
+    id: 'analyze-data',
+    headline: 'Analyze spreadsheets',
+    body: 'Pull market data, run financial models, and explain the chart in plain English.',
+    Icon: BarChart3,
+    packIds: ['business-finance', 'data-analytics'],
+    mcpIds: ['bloomberg', 'capital-iq', 'google-drive'],
+  },
+  {
+    id: 'study',
+    headline: 'Build study guides',
+    body: 'Turn your course materials into flashcards, exam prep, and study presentations.',
+    Icon: GraduationCap,
+    packIds: ['student-essentials'],
+    mcpIds: ['canvas-lms', 'web-search', 'youtube'],
+  },
+  {
+    id: 'code',
+    headline: 'Code and debug',
+    body: 'Pair-program with Claude on real codebases. Ship, test, and iterate.',
+    Icon: Code2,
+    packIds: ['code-toolkit', 'devops-infra'],
+    mcpIds: ['github', 'git', 'playwright'],
+  },
+]

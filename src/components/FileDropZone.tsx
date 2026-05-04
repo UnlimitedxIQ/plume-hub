@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Upload, File, FileText, AlertCircle, Loader2 } from 'lucide-react'
 
-// Browser-safe mammoth build — no Node APIs
+// Browser-safe mammoth build ,  no Node APIs
 import mammoth from 'mammoth/mammoth.browser'
 
 export interface UploadedSample {
@@ -26,7 +26,7 @@ type ParseResult =
 async function parseFile(file: File): Promise<ParseResult> {
   const name = file.name.toLowerCase()
 
-  // .pdf — graceful reject
+  // .pdf ,  graceful reject
   if (name.endsWith('.pdf')) {
     return {
       ok: false,
@@ -52,7 +52,7 @@ async function parseFile(file: File): Promise<ParseResult> {
   if (!supported) {
     return {
       ok: false,
-      error: `${file.name} — unsupported. Use ${ACCEPTED.slice(0, -1).join(', ')} or .docx.`,
+      error: `${file.name} ,  unsupported. Use ${ACCEPTED.slice(0, -1).join(', ')} or .docx.`,
     }
   }
 
@@ -144,16 +144,16 @@ export function FileDropZone({ onFiles, maxFiles, disabled = false }: Props) {
         </motion.div>
 
         <div className="flex flex-col items-center gap-0.5">
-          <div className="text-base font-bold text-zinc-100">
+          <div className="text-base font-bold text-stone-100">
             {busy
               ? 'Reading files…'
               : dragOver
               ? 'Drop files to upload'
               : 'Drag & drop writing samples'}
           </div>
-          <div className="text-[11px] text-zinc-500">
+          <div className="text-micro text-stone-500">
             or{' '}
-            <span className="font-semibold text-zinc-400 transition-colors hover:text-plume-300">
+            <span className="font-semibold text-stone-400 transition-colors hover:text-plume-300">
               click here to select
             </span>
           </div>
@@ -163,7 +163,7 @@ export function FileDropZone({ onFiles, maxFiles, disabled = false }: Props) {
           {['.txt', '.md', '.markdown', '.docx', '.rtf'].map((ext) => (
             <span
               key={ext}
-              className="rounded-md border border-white/10 bg-zinc-900/60 px-1.5 py-[1px] font-mono text-[9px] text-zinc-400"
+              className="rounded-md border border-white/10 bg-stone-900/60 px-1.5 py-[1px] font-mono text-micro text-stone-400"
             >
               {ext}
             </span>
@@ -171,7 +171,7 @@ export function FileDropZone({ onFiles, maxFiles, disabled = false }: Props) {
         </div>
 
         {busy && (
-          <div className="absolute inset-x-0 bottom-0 h-[2px] overflow-hidden bg-zinc-800/60">
+          <div className="absolute inset-x-0 bottom-0 h-[2px] overflow-hidden bg-stone-800/60">
             <motion.div
               className="h-full w-1/3 bg-plume-500"
               animate={{ x: ['-100%', '300%'] }}
@@ -200,7 +200,7 @@ export function FileDropZone({ onFiles, maxFiles, disabled = false }: Props) {
           {errors.map((err, i) => (
             <div
               key={i}
-              className="flex items-start gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5 px-2.5 py-1.5 text-[10px] text-red-300"
+              className="flex items-start gap-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 px-2.5 py-1.5 text-micro text-rose-300"
             >
               <AlertCircle size={10} className="mt-[2px] flex-shrink-0" />
               <span>{err}</span>
@@ -225,7 +225,7 @@ export function UploadedBadge({
 }) {
   const isDoc = filename.toLowerCase().endsWith('.docx')
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border border-plume-500/30 bg-plume-500/10 px-2 py-[1px] font-mono text-[10px] text-plume-300">
+    <span className="inline-flex items-center gap-1 rounded-md border border-plume-500/30 bg-plume-500/10 px-2 py-[1px] font-mono text-micro text-plume-300">
       {isDoc ? <File size={9} /> : <FileText size={9} />}
       <span className="max-w-[180px] truncate">{filename}</span>
       <span className="text-plume-500/70">· {chars}c</span>
